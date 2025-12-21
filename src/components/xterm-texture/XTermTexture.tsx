@@ -191,8 +191,85 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
     // Start initialization after a short delay to let xterm set up
     animationId = requestAnimationFrame(initTexture);
 
+    // Global keyboard handler since terminal is hidden and can't be focused
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (ws?.readyState !== WebSocket.OPEN) return;
+
+      // Ignore if user is typing in an input field
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      e.preventDefault();
+
+      let data: string | null = null;
+
+      if (e.key.length === 1) {
+        // Regular character
+        if (e.ctrlKey) {
+          // Ctrl+key combinations (e.g., Ctrl+C = \x03)
+          const code = e.key.toLowerCase().charCodeAt(0) - 96;
+          if (code > 0 && code < 27) {
+            data = String.fromCharCode(code);
+          }
+        } else if (e.altKey) {
+          // Alt+key sends escape sequence
+          data = '\x1b' + e.key;
+        } else {
+          data = e.key;
+        }
+      } else {
+        // Special keys
+        switch (e.key) {
+          case 'Enter':
+            data = '\r';
+            break;
+          case 'Backspace':
+            data = '\x7f';
+            break;
+          case 'Tab':
+            data = '\t';
+            break;
+          case 'Escape':
+            data = '\x1b';
+            break;
+          case 'ArrowUp':
+            data = '\x1b[A';
+            break;
+          case 'ArrowDown':
+            data = '\x1b[B';
+            break;
+          case 'ArrowRight':
+            data = '\x1b[C';
+            break;
+          case 'ArrowLeft':
+            data = '\x1b[D';
+            break;
+          case 'Home':
+            data = '\x1b[H';
+            break;
+          case 'End':
+            data = '\x1b[F';
+            break;
+          case 'Delete':
+            data = '\x1b[3~';
+            break;
+        }
+      }
+
+      if (data) {
+        ws.send(JSON.stringify({ type: 'input', data }));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
     return () => {
       cancelAnimationFrame(animationId);
+      window.removeEventListener('keydown', handleKeyDown);
       ws?.close();
       terminal.dispose();
     };
