@@ -1,6 +1,6 @@
-import React from 'react';
 import { HeadFC } from 'gatsby';
+import React from 'react';
 
-export const Head: HeadFC = () => <title>About | VR-IDE</title>;
+export const Head: HeadFC = () => <title>VR Development Environment</title>;
 
-export { Homepage as default } from '../components/homepage/Homepage';
+export { App as default } from '../components/app/App';
