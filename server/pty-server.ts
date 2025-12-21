@@ -15,7 +15,7 @@ const ALLOWED_ORIGINS = [
  * Gets the user's default shell.
  */
 function getDefaultShell(): string {
-  return process.env.SHELL || userInfo().shell || 'bash';
+  return process.env.VR_SHELL || userInfo().shell || 'bash';
 }
 
 /**
