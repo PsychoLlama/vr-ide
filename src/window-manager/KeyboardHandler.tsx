@@ -30,8 +30,9 @@ export const KeyboardHandler: React.FC = () => {
       // Handle Alt key combinations
       if (event.altKey) {
         switch (event.key.toLowerCase()) {
-          case 'n': {
-            // Alt+N: Create new window at gaze position
+          case 'n':
+          case 'enter': {
+            // Alt+N or Alt+Enter: Create new window at gaze position
             event.preventDefault();
             const { position, rotation } = getPlacement();
             createWindow(position, rotation);
