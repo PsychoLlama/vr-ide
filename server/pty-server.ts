@@ -87,7 +87,7 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     name: 'xterm-256color',
     cols: 120,
     rows: 38,
-    cwd: process.env.HOME || process.cwd(),
+    cwd: process.cwd(),
     env: process.env as Record<string, string>,
   });
 
