@@ -5,6 +5,7 @@ import { CanvasAddon } from '@xterm/addon-canvas';
 import '@xterm/xterm/css/xterm.css';
 import type { THREE as ThreeLib } from 'aframe';
 import type { MeshEntity } from '../../react-aframe';
+import { isServerMessage } from '../../pty-protocol';
 
 declare global {
   const THREE: typeof ThreeLib;
@@ -103,9 +104,13 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
         );
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = (event: MessageEvent<string>) => {
         try {
-          const msg = JSON.parse(event.data);
+          const msg: unknown = JSON.parse(event.data);
+          if (!isServerMessage(msg)) {
+            console.warn('Received invalid message from server');
+            return;
+          }
           switch (msg.type) {
             case 'output':
               terminal.write(msg.data);

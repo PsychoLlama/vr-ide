@@ -2,6 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import * as pty from 'node-pty';
 import { IncomingMessage } from 'http';
 import { userInfo } from 'os';
+import { isClientMessage } from '../src/pty-protocol';
 
 const PORT = 8001;
 const ALLOWED_ORIGINS = [
@@ -111,7 +112,11 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
   // Handle messages from WebSocket
   ws.on('message', (message: Buffer) => {
     try {
-      const msg = JSON.parse(message.toString());
+      const msg: unknown = JSON.parse(message.toString());
+      if (!isClientMessage(msg)) {
+        console.warn('Received invalid message from client');
+        return;
+      }
 
       switch (msg.type) {
         case 'input':
@@ -119,18 +124,10 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
           break;
 
         case 'resize':
-          if (
-            typeof msg.cols === 'number' &&
-            typeof msg.rows === 'number' &&
-            msg.cols > 0 &&
-            msg.rows > 0
-          ) {
+          if (msg.cols > 0 && msg.rows > 0) {
             ptyProcess.resize(msg.cols, msg.rows);
           }
           break;
-
-        default:
-          console.warn(`Unknown message type: ${msg.type}`);
       }
     } catch (err) {
       console.error('Failed to parse message:', err);
