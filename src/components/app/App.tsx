@@ -1,55 +1,11 @@
 import React from 'react';
 import 'aframe';
-import type { THREE as ThreeLib } from 'aframe';
 import type { MeshEntity } from '../../react-aframe';
 import { container } from './App.css';
-
-declare global {
-  const THREE: typeof ThreeLib;
-}
-
-const canvas = new OffscreenCanvas(256, 256);
-const ctx = canvas.getContext('2d');
-
-function render(texture: ThreeLib.CanvasTexture, object: ThreeLib.Object3D) {
-  if (!ctx) {
-    throw new Error('2d context not supported');
-  }
-
-  // Create a rainbow gradient
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-
-  // Get the current time for smooth animation
-  const time = performance.now() * 0.001;
-
-  // Add color stops with shifting hues based on time
-  gradient.addColorStop(0, `hsl(${(time * 20) % 360}, 100%, 50%)`);
-  gradient.addColorStop(0.2, `hsl(${(time * 20 + 72) % 360}, 100%, 50%)`);
-  gradient.addColorStop(0.4, `hsl(${(time * 20 + 144) % 360}, 100%, 50%)`);
-  gradient.addColorStop(0.6, `hsl(${(time * 20 + 216) % 360}, 100%, 50%)`);
-  gradient.addColorStop(0.8, `hsl(${(time * 20 + 288) % 360}, 100%, 50%)`);
-  gradient.addColorStop(1, `hsl(${(time * 20) % 360}, 100%, 50%)`);
-
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  texture.needsUpdate = true;
-  requestAnimationFrame(() => {
-    render(texture, object);
-  });
-}
+import { XTermTexture } from '../xterm-texture/XTermTexture';
 
 export const App = () => {
   const planeRef = React.useRef<MeshEntity>(null);
-
-  React.useEffect(() => {
-    if (planeRef.current) {
-      const texture = new THREE.CanvasTexture(canvas);
-      const mesh = planeRef.current.getObject3D('mesh');
-      mesh.material.map = texture;
-      mesh.material.needsUpdate = true;
-      render(texture, mesh);
-    }
-  }, []);
 
   return (
     <div className={container}>
@@ -78,6 +34,7 @@ export const App = () => {
           ref={planeRef}
         />
       </a-scene>
+      <XTermTexture planeRef={planeRef} />
     </div>
   );
 };
