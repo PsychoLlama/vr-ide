@@ -1,6 +1,7 @@
 import React from 'react';
 import 'aframe';
-import type { Entity, THREE as ThreeLib } from 'aframe';
+import type { THREE as ThreeLib } from 'aframe';
+import type { MeshEntity } from '../../react-aframe';
 import { container } from './App.css';
 
 declare global {
@@ -37,21 +38,16 @@ function render(texture: ThreeLib.CanvasTexture, object: ThreeLib.Object3D) {
   });
 }
 
-const isEntity = (node: null | HTMLElement): node is Entity => {
-  return node?.tagName === 'A-PLANE';
-};
-
 export const App = () => {
-  const planeRef = React.useRef<Entity>(null);
+  const planeRef = React.useRef<MeshEntity>(null);
 
   React.useEffect(() => {
-    if (isEntity(planeRef.current)) {
+    if (planeRef.current) {
       const texture = new THREE.CanvasTexture(canvas);
-      const object = planeRef.current.getObject3D('mesh') as ThreeLib.Mesh;
-      const material = object.material as ThreeLib.MeshStandardMaterial;
-      material.map = texture;
-      material.needsUpdate = true;
-      render(texture, object);
+      const mesh = planeRef.current.getObject3D('mesh');
+      mesh.material.map = texture;
+      mesh.material.needsUpdate = true;
+      render(texture, mesh);
     }
   }, []);
 
