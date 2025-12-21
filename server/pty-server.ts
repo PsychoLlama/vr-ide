@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import * as pty from 'node-pty';
 import { IncomingMessage } from 'http';
+import { userInfo } from 'os';
 
 const PORT = 8001;
 const ALLOWED_ORIGINS = [
@@ -9,6 +10,13 @@ const ALLOWED_ORIGINS = [
   'http://localhost:9000', // Gatsby serve
   'http://127.0.0.1:9000',
 ];
+
+/**
+ * Gets the user's default shell.
+ */
+function getDefaultShell(): string {
+  return process.env.SHELL || userInfo().shell || 'bash';
+}
 
 /**
  * Validates that the WebSocket connection originates from a trusted localhost source.
@@ -74,7 +82,7 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
   console.log(`New connection from origin: ${req.headers.origin}`);
 
   // Spawn a shell
-  const shell = process.env.SHELL || 'bash';
+  const shell = getDefaultShell();
   const ptyProcess = pty.spawn(shell, [], {
     name: 'xterm-256color',
     cols: 80,
