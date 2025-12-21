@@ -5,6 +5,7 @@ import {
   WindowManagerProvider,
   WindowRenderer,
   KeyboardHandler,
+  Launcher,
 } from '../../window-manager';
 
 export const App = () => {
@@ -16,6 +17,7 @@ export const App = () => {
           <WindowRenderer />
         </a-scene>
         <KeyboardHandler />
+        <Launcher />
       </WindowManagerProvider>
     </div>
   );

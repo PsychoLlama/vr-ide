@@ -6,10 +6,11 @@ import { useCameraDirection } from './hooks/useCameraDirection';
  * KeyboardHandler manages global keybindings and routes input to focused terminal.
  *
  * Keybindings:
- * - Alt+N: Create new window at gaze position
+ * - Alt+P: Open launcher
+ * - Alt+N or Alt+Enter: Create new window at gaze position
  * - Alt+W: Close focused window
  * - Alt+Space: Toggle select/place mode
- * - Escape: Cancel select mode
+ * - Escape: Cancel select mode / close launcher
  * - All other keys: Sent to focused terminal
  */
 export const KeyboardHandler: React.FC = () => {
@@ -20,6 +21,8 @@ export const KeyboardHandler: React.FC = () => {
     startSelectMode,
     placeSelectedWindow,
     cancelSelectMode,
+    openLauncher,
+    closeLauncher,
     sendInputToFocused,
   } = useWindowManager();
 
@@ -30,6 +33,13 @@ export const KeyboardHandler: React.FC = () => {
       // Handle Alt key combinations
       if (event.altKey) {
         switch (event.key.toLowerCase()) {
+          case 'p': {
+            // Alt+P: Open launcher
+            event.preventDefault();
+            openLauncher();
+            return;
+          }
+
           case 'n':
           case 'enter': {
             // Alt+N or Alt+Enter: Create new window at gaze position
@@ -64,15 +74,22 @@ export const KeyboardHandler: React.FC = () => {
         }
       }
 
-      // Escape: Cancel select mode
-      if (event.key === 'Escape' && state.selectMode.active) {
-        event.preventDefault();
-        cancelSelectMode();
-        return;
+      // Escape: Close launcher or cancel select mode
+      if (event.key === 'Escape') {
+        if (state.launcherOpen) {
+          event.preventDefault();
+          closeLauncher();
+          return;
+        }
+        if (state.selectMode.active) {
+          event.preventDefault();
+          cancelSelectMode();
+          return;
+        }
       }
 
-      // Don't forward events to terminal during select mode
-      if (state.selectMode.active) {
+      // Don't forward events to terminal during select mode or when launcher is open
+      if (state.selectMode.active || state.launcherOpen) {
         return;
       }
 
@@ -106,11 +123,14 @@ export const KeyboardHandler: React.FC = () => {
   }, [
     state.focusedWindowId,
     state.selectMode.active,
+    state.launcherOpen,
     createWindow,
     destroyWindow,
     startSelectMode,
     placeSelectedWindow,
     cancelSelectMode,
+    openLauncher,
+    closeLauncher,
     sendInputToFocused,
     getPlacement,
   ]);

@@ -13,6 +13,7 @@ const initialState: WindowManagerState = {
   focusedWindowId: null,
   focusHistory: [],
   selectMode: { active: false, windowId: null },
+  launcherOpen: false,
 };
 
 function windowManagerReducer(
@@ -129,6 +130,20 @@ function windowManagerReducer(
       };
     }
 
+    case 'OPEN_LAUNCHER': {
+      return {
+        ...state,
+        launcherOpen: true,
+      };
+    }
+
+    case 'CLOSE_LAUNCHER': {
+      return {
+        ...state,
+        launcherOpen: false,
+      };
+    }
+
     default:
       return state;
   }
@@ -153,6 +168,10 @@ export interface WindowManagerContextValue {
   startSelectMode: () => void;
   placeSelectedWindow: (position: Vector3, rotation: Vector3) => void;
   cancelSelectMode: () => void;
+
+  // Launcher
+  openLauncher: () => void;
+  closeLauncher: () => void;
 
   // Send input to focused terminal
   sendInputToFocused: (data: string) => void;
