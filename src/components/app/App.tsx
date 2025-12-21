@@ -15,7 +15,7 @@ export const App = () => {
           position="0 2 -4"
           rotation="0 0 0"
           width="4"
-          height="4"
+          height="2.5"
           ref={planeRef}
         />
       </a-scene>

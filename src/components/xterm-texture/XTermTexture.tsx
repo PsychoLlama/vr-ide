@@ -33,10 +33,11 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
     const plane = planeRef.current;
 
     // Create and mount the terminal
+    // 120x38 gives roughly 16:10 aspect ratio with monospace font cells
     const terminal = new Terminal({
       cursorBlink: true,
-      cols: 80,
-      rows: 24,
+      cols: 120,
+      rows: 38,
       fontSize: 16,
       fontFamily: 'monospace',
       allowTransparency: false,
@@ -280,8 +281,8 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
       ref={containerRef}
       style={{
         position: 'fixed',
-        width: '800px',
-        height: '600px',
+        width: '1200px',
+        height: '750px',
         left: '0',
         top: '0',
         opacity: 0,

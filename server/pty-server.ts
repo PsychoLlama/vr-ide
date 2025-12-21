@@ -85,8 +85,8 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
   const shell = getDefaultShell();
   const ptyProcess = pty.spawn(shell, [], {
     name: 'xterm-256color',
-    cols: 80,
-    rows: 24,
+    cols: 120,
+    rows: 38,
     cwd: process.env.HOME || process.cwd(),
     env: process.env as Record<string, string>,
   });
