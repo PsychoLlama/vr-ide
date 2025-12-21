@@ -35,7 +35,9 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
     // Create and mount the terminal
     // 120x38 gives roughly 16:10 aspect ratio with monospace font cells
     const terminal = new Terminal({
-      cursorBlink: true,
+      cursorBlink: false,
+      cursorStyle: 'block',
+      cursorInactiveStyle: 'block',
       cols: 120,
       rows: 38,
       fontSize: 16,
@@ -45,7 +47,7 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
       theme: {
         background: '#1e1e1e',
         foreground: '#abb2bf',
-        cursor: '#abb2bf',
+        cursor: '#ffffff',
         cursorAccent: '#1e1e1e',
         selectionBackground: '#3e4451',
         selectionForeground: '#1e1e1e',
@@ -75,6 +77,9 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
     // Force canvas rendering instead of WebGL/DOM
     const canvasAddon = new CanvasAddon();
     terminal.loadAddon(canvasAddon);
+
+    // Focus the terminal so the cursor renders
+    terminal.focus();
 
     terminalRef.current = terminal;
 
@@ -149,27 +154,41 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
         return;
       }
 
-      // Find the largest canvas (the main rendering canvas)
-      let terminalCanvas: HTMLCanvasElement | null = null;
-      let maxArea = 0;
-      canvasElements.forEach((canvas) => {
-        const area = canvas.width * canvas.height;
-        if (area > maxArea) {
-          maxArea = area;
-          terminalCanvas = canvas;
-        }
+      // xterm uses multiple canvas layers - we need to composite them
+      // Find all canvases and their dimensions
+      const canvases = Array.from(canvasElements);
+      const mainCanvas = canvases.reduce((largest, canvas) => {
+        return canvas.width * canvas.height > largest.width * largest.height
+          ? canvas
+          : largest;
       });
 
-      if (!terminalCanvas) {
-        console.error('Could not find xterm canvas element');
-        return;
-      }
+      // Create a composite canvas to merge all layers
+      const compositeCanvas = document.createElement('canvas');
+      compositeCanvas.width = mainCanvas.width;
+      compositeCanvas.height = mainCanvas.height;
+      const ctx = compositeCanvas.getContext('2d')!;
 
-      // Create a Three.js texture from the terminal canvas
-      const texture = new THREE.CanvasTexture(terminalCanvas);
+      // Function to composite all xterm canvas layers
+      const compositeCanvases = () => {
+        ctx.clearRect(0, 0, compositeCanvas.width, compositeCanvas.height);
+        // Draw canvases in order (bottom to top)
+        canvases.forEach((canvas) => {
+          ctx.drawImage(canvas, 0, 0);
+        });
+      };
+
+      // Initial composite
+      compositeCanvases();
+
+      // Create a Three.js texture from the composite canvas
+      const texture = new THREE.CanvasTexture(compositeCanvas);
       texture.minFilter = THREE.LinearFilter;
       texture.magFilter = THREE.LinearFilter;
       textureRef.current = texture;
+
+      // Store composite function for use in update loop
+      (textureRef as any).composite = compositeCanvases;
 
       // Apply texture to the A-Frame plane
       const mesh = plane.getObject3D('mesh');
@@ -182,6 +201,8 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
       // Continuously update the texture
       const updateTexture = () => {
         if (textureRef.current) {
+          // Re-composite all canvas layers before updating texture
+          (textureRef as any).composite?.();
           textureRef.current.needsUpdate = true;
         }
         animationId = requestAnimationFrame(updateTexture);
