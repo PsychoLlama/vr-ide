@@ -47,9 +47,10 @@ export const App = () => {
   React.useEffect(() => {
     if (isEntity(planeRef.current)) {
       const texture = new THREE.CanvasTexture(canvas);
-      const object = planeRef.current.getObject3D('mesh');
-      object.material.map = texture;
-      object.material.needsUpdate = true;
+      const object = planeRef.current.getObject3D('mesh') as ThreeLib.Mesh;
+      const material = object.material as ThreeLib.MeshStandardMaterial;
+      material.map = texture;
+      material.needsUpdate = true;
       render(texture, object);
     }
   }, []);
