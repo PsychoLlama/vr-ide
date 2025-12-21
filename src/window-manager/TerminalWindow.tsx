@@ -26,6 +26,10 @@ interface Props {
    */
   onDestroy?: () => void;
   /**
+   * Called when the PTY process exits.
+   */
+  onExit?: (exitCode: number) => void;
+  /**
    * Called when the window is clicked (for focus).
    */
   onClick?: () => void;
@@ -45,6 +49,7 @@ export const TerminalWindow: React.FC<Props> = ({
   selectMode = false,
   onReady,
   onDestroy,
+  onExit,
   onClick,
 }) => {
   const planeRef = React.useRef<MeshEntity | null>(null);
@@ -82,6 +87,7 @@ export const TerminalWindow: React.FC<Props> = ({
         planeRef={planeRef}
         onReady={onReady}
         onDestroy={onDestroy}
+        onExit={onExit}
       />
     </a-entity>
   );

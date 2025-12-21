@@ -11,6 +11,7 @@ export const WindowRenderer: React.FC = () => {
   const {
     state,
     focusWindow,
+    destroyWindow,
     registerTerminal,
     unregisterTerminal,
   } = useWindowManager();
@@ -32,6 +33,10 @@ export const WindowRenderer: React.FC = () => {
           unregisterTerminal(window.id);
         };
 
+        const handleExit = () => {
+          destroyWindow(window.id);
+        };
+
         const handleClick = () => {
           focusWindow(window.id);
         };
@@ -44,6 +49,7 @@ export const WindowRenderer: React.FC = () => {
             selectMode={isSelectMode}
             onReady={handleReady}
             onDestroy={handleDestroy}
+            onExit={handleExit}
             onClick={handleClick}
           />
         );

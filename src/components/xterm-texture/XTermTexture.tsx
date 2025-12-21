@@ -29,6 +29,10 @@ interface Props {
    * Called when the terminal is destroyed.
    */
   onDestroy?: () => void;
+  /**
+   * Called when the PTY process exits.
+   */
+  onExit?: (exitCode: number) => void;
 }
 
 /**
@@ -40,6 +44,7 @@ export const XTermTexture: React.FC<Props> = ({
   planeRef,
   onReady,
   onDestroy,
+  onExit,
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const terminalRef = React.useRef<Terminal | null>(null);
@@ -151,6 +156,7 @@ export const XTermTexture: React.FC<Props> = ({
               terminal.writeln(
                 `\r\n[Process exited with code ${msg.exitCode}]`
               );
+              onExit?.(msg.exitCode);
               break;
           }
         } catch (err) {
@@ -260,7 +266,7 @@ export const XTermTexture: React.FC<Props> = ({
       terminal.dispose();
       onDestroy?.();
     };
-  }, [windowId, planeRef, onReady, onDestroy]);
+  }, [windowId, planeRef, onReady, onDestroy, onExit]);
 
   return (
     <div
