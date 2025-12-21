@@ -25,6 +25,7 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const terminalRef = React.useRef<Terminal | null>(null);
   const textureRef = React.useRef<ThreeLib.CanvasTexture | null>(null);
+  const compositeRef = React.useRef<(() => void) | null>(null);
 
   React.useEffect(() => {
     if (!containerRef.current || !planeRef.current) return;
@@ -188,12 +189,13 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
       textureRef.current = texture;
 
       // Store composite function for use in update loop
-      (textureRef as any).composite = compositeCanvases;
+      compositeRef.current = compositeCanvases;
 
-      // Apply texture to the A-Frame plane
+      // Apply texture to the A-Frame plane with an unlit material
       const mesh = plane.getObject3D('mesh');
-      mesh.material.map = texture;
-      mesh.material.needsUpdate = true;
+      mesh.material = new THREE.MeshBasicMaterial({
+        map: texture,
+      }) as unknown as ThreeLib.MeshStandardMaterial;
 
       // Connect to server once texture is ready
       connectWebSocket();
@@ -202,7 +204,7 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
       const updateTexture = () => {
         if (textureRef.current) {
           // Re-composite all canvas layers before updating texture
-          (textureRef as any).composite?.();
+          compositeRef.current?.();
           textureRef.current.needsUpdate = true;
         }
         animationId = requestAnimationFrame(updateTexture);
