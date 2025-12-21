@@ -6,10 +6,10 @@ import { useCameraDirection } from './hooks/useCameraDirection';
  * KeyboardHandler manages global keybindings and routes input to focused terminal.
  *
  * Keybindings:
- * - Alt+P: Open launcher
+ * - Alt+Space: Open launcher
  * - Alt+N or Alt+Enter: Create new window at gaze position
  * - Alt+W: Close focused window
- * - Alt+Space: Toggle select/place mode
+ * - Alt+M: Toggle select/place mode (move window)
  * - Escape: Cancel select mode / close launcher
  * - All other keys: Sent to focused terminal
  */
@@ -33,8 +33,8 @@ export const KeyboardHandler: React.FC = () => {
       // Handle Alt key combinations
       if (event.altKey) {
         switch (event.key.toLowerCase()) {
-          case 'p': {
-            // Alt+P: Open launcher
+          case ' ': {
+            // Alt+Space: Open launcher
             event.preventDefault();
             openLauncher();
             return;
@@ -58,8 +58,8 @@ export const KeyboardHandler: React.FC = () => {
             return;
           }
 
-          case ' ': {
-            // Alt+Space: Toggle select/place mode
+          case 'm': {
+            // Alt+M: Toggle select/place mode (move window)
             event.preventDefault();
             if (state.selectMode.active) {
               // Place the selected window
