@@ -1,0 +1,13 @@
+[formatter.prettier]
+command = "prettier"
+options = ["--write"]
+includes = [
+  "*.js",
+  "*.jsx",
+  "*.ts",
+  "*.tsx",
+  "*.json",
+  "*.md",
+  "*.css",
+  "*.html",
+]

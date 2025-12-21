@@ -25,7 +25,11 @@
       devShell = eachSystem (
         system: pkgs:
         pkgs.mkShell {
-          packages = [ pkgs.nodejs ];
+          packages = [
+            pkgs.nodejs
+            pkgs.just
+            pkgs.treefmt
+          ];
         }
       );
     };
