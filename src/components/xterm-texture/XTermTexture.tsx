@@ -77,12 +77,65 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
 
     terminalRef.current = terminal;
 
-    // Write some demo content
-    terminal.writeln('Welcome to VR Terminal!');
-    terminal.writeln('');
-    terminal.write('$ ');
-
     let animationId: number;
+    let ws: WebSocket | null = null;
+
+    // Connect to PTY server
+    const connectWebSocket = () => {
+      ws = new WebSocket('ws://127.0.0.1:8001');
+
+      ws.onopen = () => {
+        console.log('Connected to PTY server');
+        // Send initial resize
+        ws?.send(
+          JSON.stringify({
+            type: 'resize',
+            cols: terminal.cols,
+            rows: terminal.rows,
+          })
+        );
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          switch (msg.type) {
+            case 'output':
+              terminal.write(msg.data);
+              break;
+            case 'exit':
+              terminal.writeln(`\r\n[Process exited with code ${msg.exitCode}]`);
+              break;
+          }
+        } catch (err) {
+          console.error('Failed to parse message:', err);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('Disconnected from PTY server');
+        terminal.writeln('\r\n[Connection closed]');
+      };
+
+      ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        terminal.writeln('\r\n[Connection error - is the PTY server running?]');
+      };
+    };
+
+    // Send terminal input to WebSocket
+    terminal.onData((data) => {
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', data }));
+      }
+    });
+
+    // Handle terminal resize
+    terminal.onResize(({ cols, rows }) => {
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+      }
+    });
 
     // Wait a frame for xterm to fully render its canvas
     const initTexture = () => {
@@ -122,6 +175,9 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
       mesh.material.map = texture;
       mesh.material.needsUpdate = true;
 
+      // Connect to server once texture is ready
+      connectWebSocket();
+
       // Continuously update the texture
       const updateTexture = () => {
         if (textureRef.current) {
@@ -135,23 +191,9 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
     // Start initialization after a short delay to let xterm set up
     animationId = requestAnimationFrame(initTexture);
 
-    // Handle keyboard input
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Send key to terminal
-      if (e.key.length === 1) {
-        terminal.write(e.key);
-      } else if (e.key === 'Enter') {
-        terminal.writeln('');
-        terminal.write('$ ');
-      } else if (e.key === 'Backspace') {
-        terminal.write('\b \b');
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       cancelAnimationFrame(animationId);
-      window.removeEventListener('keydown', handleKeyDown);
+      ws?.close();
       terminal.dispose();
     };
   }, [planeRef]);

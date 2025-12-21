@@ -29,6 +29,7 @@
             pkgs.nodejs
             pkgs.just
             pkgs.treefmt
+            pkgs.python3  # Required for node-gyp (native modules)
           ];
         }
       );
