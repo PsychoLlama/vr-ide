@@ -24,6 +24,7 @@ export interface WindowManagerState {
   focusHistory: string[];
   selectMode: SelectModeState;
   launcherOpen: boolean;
+  browserOpen: boolean;
 }
 
 export type WindowManagerAction =
@@ -35,7 +36,9 @@ export type WindowManagerAction =
   | { type: 'PLACE_SELECTED_WINDOW'; payload: { position: Vector3; rotation: Vector3 } }
   | { type: 'CANCEL_SELECT_MODE' }
   | { type: 'OPEN_LAUNCHER' }
-  | { type: 'CLOSE_LAUNCHER' };
+  | { type: 'CLOSE_LAUNCHER' }
+  | { type: 'OPEN_BROWSER' }
+  | { type: 'CLOSE_BROWSER' };
 
 /**
  * Handle exposed by XTermTexture for sending input to the terminal.

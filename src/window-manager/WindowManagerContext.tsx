@@ -14,6 +14,7 @@ const initialState: WindowManagerState = {
   focusHistory: [],
   selectMode: { active: false, windowId: null },
   launcherOpen: false,
+  browserOpen: false,
 };
 
 function windowManagerReducer(
@@ -144,6 +145,20 @@ function windowManagerReducer(
       };
     }
 
+    case 'OPEN_BROWSER': {
+      return {
+        ...state,
+        browserOpen: true,
+      };
+    }
+
+    case 'CLOSE_BROWSER': {
+      return {
+        ...state,
+        browserOpen: false,
+      };
+    }
+
     default:
       return state;
   }
@@ -172,6 +187,10 @@ export interface WindowManagerContextValue {
   // Launcher
   openLauncher: () => void;
   closeLauncher: () => void;
+
+  // Browser
+  openBrowser: () => void;
+  closeBrowser: () => void;
 
   // Send input to focused terminal
   sendInputToFocused: (data: string) => void;

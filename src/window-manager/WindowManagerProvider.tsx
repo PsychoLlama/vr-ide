@@ -87,6 +87,14 @@ export const WindowManagerProvider: React.FC<WindowManagerProviderProps> = ({
     dispatch({ type: 'CLOSE_LAUNCHER' });
   }, []);
 
+  const openBrowser = React.useCallback(() => {
+    dispatch({ type: 'OPEN_BROWSER' });
+  }, []);
+
+  const closeBrowser = React.useCallback(() => {
+    dispatch({ type: 'CLOSE_BROWSER' });
+  }, []);
+
   const sendInputToFocused = React.useCallback(
     (data: string) => {
       if (!state.focusedWindowId) return;
@@ -114,6 +122,8 @@ export const WindowManagerProvider: React.FC<WindowManagerProviderProps> = ({
       cancelSelectMode,
       openLauncher,
       closeLauncher,
+      openBrowser,
+      closeBrowser,
       sendInputToFocused,
     }),
     [
@@ -129,6 +139,8 @@ export const WindowManagerProvider: React.FC<WindowManagerProviderProps> = ({
       cancelSelectMode,
       openLauncher,
       closeLauncher,
+      openBrowser,
+      closeBrowser,
       sendInputToFocused,
     ]
   );

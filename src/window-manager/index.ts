@@ -5,6 +5,7 @@ export { TerminalWindow } from './TerminalWindow';
 export { WindowBorder } from './WindowBorder';
 export { KeyboardHandler } from './KeyboardHandler';
 export { Launcher } from './Launcher';
+export { BrowserWindow } from './BrowserWindow';
 export { useCameraDirection } from './hooks/useCameraDirection';
 export type {
   Vector3,
