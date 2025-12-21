@@ -6,6 +6,7 @@ import '@xterm/xterm/css/xterm.css';
 import type { THREE as ThreeLib } from 'aframe';
 import type { MeshEntity } from '../../react-aframe';
 import { isServerMessage } from '../../pty-protocol';
+import type { XTermTextureHandle } from '../../window-manager/types';
 
 declare global {
   const THREE: typeof ThreeLib;
@@ -13,20 +14,38 @@ declare global {
 
 interface Props {
   /**
+   * Unique identifier for this terminal window.
+   */
+  windowId: string;
+  /**
    * Ref to the A-Frame mesh entity where the terminal texture will be applied.
    */
   planeRef: React.RefObject<MeshEntity | null>;
+  /**
+   * Called when the terminal is ready to receive input.
+   */
+  onReady?: (handle: XTermTextureHandle) => void;
+  /**
+   * Called when the terminal is destroyed.
+   */
+  onDestroy?: () => void;
 }
 
 /**
  * XTermTexture mounts an xterm.js terminal and renders it as a texture
  * on a Three.js mesh (via A-Frame).
  */
-export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
+export const XTermTexture: React.FC<Props> = ({
+  windowId,
+  planeRef,
+  onReady,
+  onDestroy,
+}) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const terminalRef = React.useRef<Terminal | null>(null);
   const textureRef = React.useRef<ThreeLib.CanvasTexture | null>(null);
   const compositeRef = React.useRef<(() => void) | null>(null);
+  const wsRef = React.useRef<WebSocket | null>(null);
 
   React.useEffect(() => {
     if (!containerRef.current || !planeRef.current) return;
@@ -86,29 +105,42 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
     terminalRef.current = terminal;
 
     let animationId: number;
-    let ws: WebSocket | null = null;
 
     // Connect to PTY server
     const connectWebSocket = () => {
-      ws = new WebSocket('ws://127.0.0.1:8001');
+      const ws = new WebSocket('ws://127.0.0.1:8001');
+      wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('Connected to PTY server');
+        console.log(`[${windowId}] Connected to PTY server`);
         // Send initial resize
-        ws?.send(
+        ws.send(
           JSON.stringify({
             type: 'resize',
             cols: terminal.cols,
             rows: terminal.rows,
           })
         );
+
+        // Notify parent that we're ready
+        if (onReady) {
+          const handle: XTermTextureHandle = {
+            sendInput: (data: string) => {
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'input', data }));
+              }
+            },
+            getTexture: () => textureRef.current,
+          };
+          onReady(handle);
+        }
       };
 
       ws.onmessage = (event: MessageEvent<string>) => {
         try {
           const msg: unknown = JSON.parse(event.data);
           if (!isServerMessage(msg)) {
-            console.warn('Received invalid message from server');
+            console.warn(`[${windowId}] Received invalid message from server`);
             return;
           }
           switch (msg.type) {
@@ -116,36 +148,38 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
               terminal.write(msg.data);
               break;
             case 'exit':
-              terminal.writeln(`\r\n[Process exited with code ${msg.exitCode}]`);
+              terminal.writeln(
+                `\r\n[Process exited with code ${msg.exitCode}]`
+              );
               break;
           }
         } catch (err) {
-          console.error('Failed to parse message:', err);
+          console.error(`[${windowId}] Failed to parse message:`, err);
         }
       };
 
       ws.onclose = () => {
-        console.log('Disconnected from PTY server');
+        console.log(`[${windowId}] Disconnected from PTY server`);
         terminal.writeln('\r\n[Connection closed]');
       };
 
       ws.onerror = (err) => {
-        console.error('WebSocket error:', err);
+        console.error(`[${windowId}] WebSocket error:`, err);
         terminal.writeln('\r\n[Connection error - is the PTY server running?]');
       };
     };
 
-    // Send terminal input to WebSocket
+    // Send terminal input to WebSocket (used by xterm's onData)
     terminal.onData((data) => {
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'input', data }));
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'input', data }));
       }
     });
 
     // Handle terminal resize
     terminal.onResize(({ cols, rows }) => {
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'resize', cols, rows }));
       }
     });
 
@@ -220,93 +254,18 @@ export const XTermTexture: React.FC<Props> = ({ planeRef }) => {
     // Start initialization after a short delay to let xterm set up
     animationId = requestAnimationFrame(initTexture);
 
-    // Global keyboard handler since terminal is hidden and can't be focused
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (ws?.readyState !== WebSocket.OPEN) return;
-
-      // Ignore if user is typing in an input field
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
-        return;
-      }
-
-      e.preventDefault();
-
-      let data: string | null = null;
-
-      if (e.key.length === 1) {
-        // Regular character
-        if (e.ctrlKey) {
-          // Ctrl+key combinations (e.g., Ctrl+C = \x03)
-          const code = e.key.toLowerCase().charCodeAt(0) - 96;
-          if (code > 0 && code < 27) {
-            data = String.fromCharCode(code);
-          }
-        } else if (e.altKey) {
-          // Alt+key sends escape sequence
-          data = '\x1b' + e.key;
-        } else {
-          data = e.key;
-        }
-      } else {
-        // Special keys
-        switch (e.key) {
-          case 'Enter':
-            data = '\r';
-            break;
-          case 'Backspace':
-            data = '\x7f';
-            break;
-          case 'Tab':
-            data = '\t';
-            break;
-          case 'Escape':
-            data = '\x1b';
-            break;
-          case 'ArrowUp':
-            data = '\x1b[A';
-            break;
-          case 'ArrowDown':
-            data = '\x1b[B';
-            break;
-          case 'ArrowRight':
-            data = '\x1b[C';
-            break;
-          case 'ArrowLeft':
-            data = '\x1b[D';
-            break;
-          case 'Home':
-            data = '\x1b[H';
-            break;
-          case 'End':
-            data = '\x1b[F';
-            break;
-          case 'Delete':
-            data = '\x1b[3~';
-            break;
-        }
-      }
-
-      if (data) {
-        ws.send(JSON.stringify({ type: 'input', data }));
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       cancelAnimationFrame(animationId);
-      window.removeEventListener('keydown', handleKeyDown);
-      ws?.close();
+      wsRef.current?.close();
       terminal.dispose();
+      onDestroy?.();
     };
-  }, [planeRef]);
+  }, [windowId, planeRef, onReady, onDestroy]);
 
   return (
     <div
       ref={containerRef}
+      data-window-id={windowId}
       style={{
         position: 'fixed',
         width: '1200px',

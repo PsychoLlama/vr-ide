@@ -24,6 +24,7 @@ interface BaseAFrameProps {
   animation?: string;
   'animation__*'?: string;
   children?: React.ReactNode;
+  onClick?: (event: Event) => void;
 }
 
 interface PrimitiveProps extends BaseAFrameProps {
