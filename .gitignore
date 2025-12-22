@@ -1,6 +1,4 @@
 /.direnv
-/.cache
-/public
-/src/gatsby-types.d.ts
+/dist
 node_modules
 .aider*
