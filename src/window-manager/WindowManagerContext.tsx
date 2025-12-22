@@ -14,7 +14,6 @@ const initialState: WindowManagerState = {
   focusHistory: [],
   selectMode: { active: false, windowId: null },
   launcherOpen: false,
-  browserOpen: false,
 };
 
 function windowManagerReducer(
@@ -145,17 +144,17 @@ function windowManagerReducer(
       };
     }
 
-    case 'OPEN_BROWSER': {
-      return {
-        ...state,
-        browserOpen: true,
-      };
-    }
+    case 'UPDATE_BROWSER_URL': {
+      const { id, url } = action.payload;
+      const window = state.windows.get(id);
+      if (!window || window.type !== 'browser') return state;
 
-    case 'CLOSE_BROWSER': {
+      const newWindows = new Map(state.windows);
+      newWindows.set(id, { ...window, url });
+
       return {
         ...state,
-        browserOpen: false,
+        windows: newWindows,
       };
     }
 
@@ -188,9 +187,9 @@ export interface WindowManagerContextValue {
   openLauncher: () => void;
   closeLauncher: () => void;
 
-  // Browser
-  openBrowser: () => void;
-  closeBrowser: () => void;
+  // Browser windows
+  createBrowserWindow: (position: Vector3, rotation: Vector3, url?: string) => string;
+  updateBrowserUrl: (id: string, url: string) => void;
 
   // Send input to focused terminal
   sendInputToFocused: (data: string) => void;

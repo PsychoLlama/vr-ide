@@ -14,7 +14,7 @@ interface App {
  * Shows a search input and filtered list of apps.
  */
 export const Launcher: React.FC = () => {
-  const { state, closeLauncher, createWindow, openBrowser } = useWindowManager();
+  const { state, closeLauncher, createWindow, createBrowserWindow } = useWindowManager();
   const getPlacement = useCameraDirection();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [query, setQuery] = React.useState('');
@@ -38,12 +38,13 @@ export const Launcher: React.FC = () => {
         name: 'Browser',
         icon: '🌐',
         action: () => {
-          openBrowser();
+          const { position, rotation } = getPlacement();
+          createBrowserWindow(position, rotation);
           closeLauncher();
         },
       },
     ],
-    [createWindow, closeLauncher, openBrowser, getPlacement]
+    [createWindow, createBrowserWindow, closeLauncher, getPlacement]
   );
 
   // Filter apps based on query

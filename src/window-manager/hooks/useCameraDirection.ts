@@ -20,6 +20,14 @@ declare const THREE: typeof ThreeLib;
  */
 export function useCameraDirection(): () => CameraPlacement {
   const getPlacement = React.useCallback((): CameraPlacement => {
+    // Guard for SSR
+    if (typeof document === 'undefined') {
+      return {
+        position: { x: 0, y: 1.6, z: -4 },
+        rotation: { x: 0, y: 0, z: 0 },
+      };
+    }
+
     // Get camera element
     const cameraEl = document.querySelector('[camera]');
     if (!cameraEl) {
