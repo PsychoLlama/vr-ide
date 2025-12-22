@@ -131,7 +131,17 @@ export const BrowserWindow3D: React.FC<Props> = ({
         container.style.display = 'block';
         container.style.left = `${screenX}px`;
         container.style.top = `${screenY}px`;
-        container.style.transform = `translate(-50%, -50%) scale(${scale})`;
+
+        // Apply 3D rotation to match the plane's orientation
+        // Convert Euler angles to degrees for CSS
+        const rotX = euler.x * (180 / Math.PI);
+        const rotY = euler.y * (180 / Math.PI);
+        const rotZ = euler.z * (180 / Math.PI);
+
+        // Combine translate, scale, and 3D rotation
+        // Note: CSS rotations are applied in reverse order (rotateZ, rotateY, rotateX)
+        container.style.transform = `translate(-50%, -50%) perspective(1000px) rotateX(${rotX}deg) rotateY(${rotY}deg) rotateZ(${rotZ}deg) scale(${scale})`;
+
         // Adjust z-index based on distance (closer = higher)
         container.style.zIndex = String(Math.floor(1000 - distance * 10));
       }
@@ -229,6 +239,7 @@ const styles: Record<string, React.CSSProperties> = {
     height: `${IFRAME_HEIGHT}px`,
     pointerEvents: 'auto',
     transformOrigin: 'center center',
+    transformStyle: 'preserve-3d',
     display: 'flex',
     flexDirection: 'column',
     backgroundColor: '#282c34',
