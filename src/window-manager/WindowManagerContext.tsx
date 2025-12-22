@@ -144,20 +144,6 @@ function windowManagerReducer(
       };
     }
 
-    case 'UPDATE_BROWSER_URL': {
-      const { id, url } = action.payload;
-      const window = state.windows.get(id);
-      if (!window || window.type !== 'browser') return state;
-
-      const newWindows = new Map(state.windows);
-      newWindows.set(id, { ...window, url });
-
-      return {
-        ...state,
-        windows: newWindows,
-      };
-    }
-
     default:
       return state;
   }
@@ -186,10 +172,6 @@ export interface WindowManagerContextValue {
   // Launcher
   openLauncher: () => void;
   closeLauncher: () => void;
-
-  // Browser windows
-  createBrowserWindow: (position: Vector3, rotation: Vector3, url?: string) => string;
-  updateBrowserUrl: (id: string, url: string) => void;
 
   // Send input to focused terminal
   sendInputToFocused: (data: string) => void;

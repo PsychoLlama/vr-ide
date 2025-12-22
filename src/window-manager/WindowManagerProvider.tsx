@@ -41,7 +41,6 @@ export const WindowManagerProvider: React.FC<WindowManagerProviderProps> = ({
         type: 'CREATE_WINDOW',
         payload: {
           id,
-          type: 'terminal',
           position,
           rotation,
           createdAt: Date.now(),
@@ -51,29 +50,6 @@ export const WindowManagerProvider: React.FC<WindowManagerProviderProps> = ({
     },
     []
   );
-
-  const createBrowserWindow = React.useCallback(
-    (position: Vector3, rotation: Vector3, url?: string): string => {
-      const id = generateWindowId();
-      dispatch({
-        type: 'CREATE_WINDOW',
-        payload: {
-          id,
-          type: 'browser',
-          position,
-          rotation,
-          createdAt: Date.now(),
-          url: url ?? 'https://example.com',
-        },
-      });
-      return id;
-    },
-    []
-  );
-
-  const updateBrowserUrl = React.useCallback((id: string, url: string) => {
-    dispatch({ type: 'UPDATE_BROWSER_URL', payload: { id, url } });
-  }, []);
 
   const destroyWindow = React.useCallback((id: string) => {
     dispatch({ type: 'DESTROY_WINDOW', payload: { id } });
@@ -130,8 +106,6 @@ export const WindowManagerProvider: React.FC<WindowManagerProviderProps> = ({
       registerTerminal,
       unregisterTerminal,
       createWindow,
-      createBrowserWindow,
-      updateBrowserUrl,
       destroyWindow,
       focusWindow,
       getFocusedWindow,
@@ -147,8 +121,6 @@ export const WindowManagerProvider: React.FC<WindowManagerProviderProps> = ({
       registerTerminal,
       unregisterTerminal,
       createWindow,
-      createBrowserWindow,
-      updateBrowserUrl,
       destroyWindow,
       focusWindow,
       getFocusedWindow,

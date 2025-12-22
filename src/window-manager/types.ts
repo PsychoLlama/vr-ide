@@ -6,16 +6,11 @@ export interface Vector3 {
   z: number;
 }
 
-export type WindowType = 'terminal' | 'browser';
-
 export interface WindowState {
   id: string;
-  type: WindowType;
   position: Vector3;
   rotation: Vector3;
   createdAt: number;
-  // Browser-specific state
-  url?: string;
 }
 
 export interface SelectModeState {
@@ -36,7 +31,6 @@ export type WindowManagerAction =
   | { type: 'DESTROY_WINDOW'; payload: { id: string } }
   | { type: 'FOCUS_WINDOW'; payload: { id: string } }
   | { type: 'UPDATE_WINDOW_POSITION'; payload: { id: string; position: Vector3; rotation: Vector3 } }
-  | { type: 'UPDATE_BROWSER_URL'; payload: { id: string; url: string } }
   | { type: 'START_SELECT_MODE' }
   | { type: 'PLACE_SELECTED_WINDOW'; payload: { position: Vector3; rotation: Vector3 } }
   | { type: 'CANCEL_SELECT_MODE' }

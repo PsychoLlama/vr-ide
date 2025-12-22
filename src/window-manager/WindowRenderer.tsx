@@ -1,12 +1,11 @@
 import React from 'react';
 import { useWindowManager } from './WindowManagerContext';
 import { TerminalWindow } from './TerminalWindow';
-import { BrowserWindow3D } from './BrowserWindow3D';
 import type { XTermTextureHandle } from './types';
 
 /**
  * WindowRenderer renders all windows from the window manager state.
- * Each window gets its own component based on its type.
+ * Each window gets its own TerminalWindow component.
  */
 export const WindowRenderer: React.FC = () => {
   const {
@@ -26,23 +25,6 @@ export const WindowRenderer: React.FC = () => {
         const isSelectMode =
           state.selectMode.active && state.selectMode.windowId === window.id;
 
-        const handleClick = () => {
-          focusWindow(window.id);
-        };
-
-        if (window.type === 'browser') {
-          return (
-            <BrowserWindow3D
-              key={window.id}
-              window={window}
-              focused={isFocused}
-              selectMode={isSelectMode}
-              onClick={handleClick}
-            />
-          );
-        }
-
-        // Default to terminal window
         const handleReady = (handle: XTermTextureHandle) => {
           registerTerminal(window.id, handle);
         };
@@ -53,6 +35,10 @@ export const WindowRenderer: React.FC = () => {
 
         const handleExit = () => {
           destroyWindow(window.id);
+        };
+
+        const handleClick = () => {
+          focusWindow(window.id);
         };
 
         return (
