@@ -2,7 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import * as pty from 'node-pty';
 import { IncomingMessage } from 'http';
 import { userInfo } from 'os';
-import { isClientMessage } from '../src/pty-protocol';
+import { isClientMessage } from '../src/pty-protocol.ts';
 
 const PORT = 8001;
 const ALLOWED_ORIGINS = [
