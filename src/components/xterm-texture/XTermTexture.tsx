@@ -6,6 +6,7 @@ import '@xterm/xterm/css/xterm.css';
 import type { THREE as ThreeLib } from 'aframe';
 import type { MeshEntity } from '../../react-aframe';
 import { isServerMessage } from '../../pty-protocol';
+import { getClientId } from '../../client-id';
 import type { XTermTextureHandle } from '../../window-manager/types';
 
 declare global {
@@ -113,7 +114,9 @@ export const XTermTexture: React.FC<Props> = ({
 
     // Connect to PTY server
     const connectWebSocket = () => {
-      const ws = new WebSocket('ws://127.0.0.1:8001');
+      const ws = new WebSocket(
+        `ws://127.0.0.1:8001/?clientId=${getClientId()}`,
+      );
       wsRef.current = ws;
 
       ws.onopen = () => {
