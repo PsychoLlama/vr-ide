@@ -89,7 +89,7 @@ wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     cols: 120,
     rows: 38,
     cwd: process.cwd(),
-    env: process.env as Record<string, string>,
+    env: process.env,
   });
 
   console.log(`Spawned ${shell} with PID ${ptyProcess.pid}`);

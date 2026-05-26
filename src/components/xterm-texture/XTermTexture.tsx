@@ -237,10 +237,10 @@ export const XTermTexture: React.FC<Props> = ({
       compositeRef.current = compositeCanvases;
 
       // Apply texture to the A-Frame plane with an unlit material
-      const mesh = plane.getObject3D('mesh');
+      const mesh = plane.getObject3D('mesh') as ThreeLib.Mesh;
       mesh.material = new THREE.MeshBasicMaterial({
         map: texture,
-      }) as unknown as ThreeLib.MeshStandardMaterial;
+      });
 
       // Connect to server once texture is ready
       connectWebSocket();
