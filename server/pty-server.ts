@@ -8,12 +8,6 @@ import { parseArgs } from 'util';
 import { isClientMessage } from '../src/pty-protocol.ts';
 
 const PORT = 8001;
-const ALLOWED_ORIGINS = [
-  'http://localhost:8000',
-  'http://127.0.0.1:8000',
-  'http://localhost:9000', // Gatsby serve
-  'http://127.0.0.1:9000',
-];
 
 const { values: cliArgs } = parseArgs({
   options: {
@@ -86,42 +80,9 @@ function extractClientId(req: IncomingMessage): string | null {
 }
 
 /**
- * Validates that the WebSocket connection originates from a trusted localhost source.
- */
-function isValidOrigin(origin: string | undefined): boolean {
-  if (!origin) {
-    console.warn('Connection rejected: No origin header');
-    return false;
-  }
-
-  // Check if origin matches allowed localhost origins
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    return true;
-  }
-
-  // Also allow any localhost/127.0.0.1 origin for flexibility during dev
-  const url = new URL(origin);
-  const isLocalhost =
-    url.hostname === 'localhost' || url.hostname === '127.0.0.1';
-
-  if (!isLocalhost) {
-    console.warn(`Connection rejected: Non-localhost origin "${origin}"`);
-    return false;
-  }
-
-  return true;
-}
-
-/**
  * Validates the incoming connection request.
  */
 function validateConnection(req: IncomingMessage): boolean {
-  const origin = req.headers.origin;
-
-  if (!isValidOrigin(origin)) {
-    return false;
-  }
-
   // Verify the request is coming to localhost
   const host = req.headers.host;
   if (host && !host.startsWith('localhost') && !host.startsWith('127.0.0.1')) {
@@ -136,7 +97,7 @@ function validateConnection(req: IncomingMessage): boolean {
   const clientId = extractClientId(req);
   if (!clientId || !loadAuthorizedClients().has(clientId)) {
     console.warn(
-      `Connection rejected from ${origin ?? 'unknown origin'}\n` +
+      `Connection rejected from ${req.headers.origin ?? 'unknown origin'}\n` +
         `  Client ID: ${clientId ?? 'missing'}\n` +
         `  To authorize, add the ID to ${AUTH_FILE}:\n` +
         `    { "clients": [{ "id": "<uuid>", "label": "optional" }] }\n` +
@@ -159,7 +120,6 @@ const wss = new WebSocketServer({
 });
 
 console.log(`PTY server listening on ws://127.0.0.1:${PORT}`);
-console.log(`Allowed origins: ${ALLOWED_ORIGINS.join(', ')}`);
 if (cliArgs['trust-localhost']) {
   console.log('Client approval: DISABLED (--trust-localhost)');
 } else {
