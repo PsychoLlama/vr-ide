@@ -2,6 +2,9 @@ import { WebSocketServer, WebSocket } from 'ws';
 import * as pty from 'node-pty';
 import { IncomingMessage } from 'http';
 import { userInfo } from 'os';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+import { parseArgs } from 'util';
 import { isClientMessage } from '../src/pty-protocol.ts';
 
 const PORT = 8001;
@@ -12,11 +15,74 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:9000',
 ];
 
+const { values: cliArgs } = parseArgs({
+  options: {
+    'trust-localhost': { type: 'boolean', default: false },
+  },
+});
+
+const AUTH_FILE = process.env.VR_AUTHORIZED_CLIENTS
+  ? resolve(process.env.VR_AUTHORIZED_CLIENTS)
+  : resolve(process.cwd(), '.authorized-clients.json');
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Gets the user's default shell.
  */
 function getDefaultShell(): string {
   return process.env.VR_SHELL || userInfo().shell || 'bash';
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Reads the authorized client IDs from disk. Called per connection so edits
+ * take effect without restarting the server. Missing file is treated as an
+ * empty set so the rejection log can guide first-time setup.
+ */
+function loadAuthorizedClients(): Set<string> {
+  let raw: string;
+  try {
+    raw = readFileSync(AUTH_FILE, 'utf8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return new Set();
+    console.error(`Failed to read ${AUTH_FILE}:`, err);
+    return new Set();
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    const ids = new Set<string>();
+    if (!isObject(parsed) || !Array.isArray(parsed.clients)) return ids;
+    for (const entry of parsed.clients as unknown[]) {
+      if (isObject(entry) && typeof entry.id === 'string') {
+        ids.add(entry.id.toLowerCase());
+      }
+    }
+    return ids;
+  } catch (err) {
+    console.error(`Failed to parse ${AUTH_FILE}:`, err);
+    return new Set();
+  }
+}
+
+/**
+ * Extracts and validates the clientId query parameter from the WebSocket
+ * upgrade request. Returns null when missing or malformed.
+ */
+function extractClientId(req: IncomingMessage): string | null {
+  try {
+    const url = new URL(req.url ?? '', 'http://localhost');
+    const id = url.searchParams.get('clientId');
+    if (!id || !UUID_RE.test(id)) return null;
+    return id.toLowerCase();
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -63,6 +129,22 @@ function validateConnection(req: IncomingMessage): boolean {
     return false;
   }
 
+  if (cliArgs['trust-localhost']) {
+    return true;
+  }
+
+  const clientId = extractClientId(req);
+  if (!clientId || !loadAuthorizedClients().has(clientId)) {
+    console.warn(
+      `Connection rejected from ${origin ?? 'unknown origin'}\n` +
+        `  Client ID: ${clientId ?? 'missing'}\n` +
+        `  To authorize, add the ID to ${AUTH_FILE}:\n` +
+        `    { "clients": [{ "id": "<uuid>", "label": "optional" }] }\n` +
+        `  Or restart with --trust-localhost to disable approval.`,
+    );
+    return false;
+  }
+
   return true;
 }
 
@@ -78,6 +160,12 @@ const wss = new WebSocketServer({
 
 console.log(`PTY server listening on ws://127.0.0.1:${PORT}`);
 console.log(`Allowed origins: ${ALLOWED_ORIGINS.join(', ')}`);
+if (cliArgs['trust-localhost']) {
+  console.log('Client approval: DISABLED (--trust-localhost)');
+} else {
+  const count = loadAuthorizedClients().size;
+  console.log(`Client approval: ENABLED (${count} authorized in ${AUTH_FILE})`);
+}
 
 wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
   console.log(`New connection from origin: ${req.headers.origin}`);
