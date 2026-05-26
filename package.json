@@ -19,12 +19,6 @@
   "prettier": {
     "singleQuote": true
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "node-pty"
-    ]
-  },
   "scripts": {
     "build": "vite build",
     "dev": "vite",
