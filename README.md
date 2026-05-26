@@ -9,9 +9,9 @@ An experimental development environment built for virtual reality. This project 
 Start the PTY server and dev server:
 
 ```sh
-npm install
-npm run pty &
-npm run dev
+pnpm install
+pnpm run pty &
+pnpm run dev
 ```
 
 Then open the URL in a WebXR-compatible browser.
