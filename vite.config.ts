@@ -13,6 +13,10 @@ import {
   attachKeyboardHandlers,
   isKeyboardAuthorized,
 } from './server/keyboard-core.ts';
+import {
+  attachSessionHandlers,
+  isSessionAuthorized,
+} from './server/session-core.ts';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 const serverDir = resolve(projectRoot, 'server');
@@ -42,6 +46,15 @@ export default defineConfig({
       backend: {
         isAuthorized: (req, logger) => isKeyboardAuthorized(req, auth, logger),
         attachHandlers: attachKeyboardHandlers,
+      },
+    }),
+    wsRoutePlugin({
+      name: 'vr-ide:session',
+      match: (p) => p.startsWith('/session/'),
+      watchDir: serverDir,
+      backend: {
+        isAuthorized: (req, logger) => isSessionAuthorized(req, auth, logger),
+        attachHandlers: attachSessionHandlers,
       },
     }),
   ],

@@ -6,6 +6,7 @@ import {
   KeyboardHandler,
   KeyboardRelay,
   Launcher,
+  SessionPresence,
 } from '../../window-manager';
 import { KeyboardSender } from '../keyboard-sender/KeyboardSender';
 
@@ -22,6 +23,7 @@ export const App = () => {
         </a-scene>
         <KeyboardHandler />
         <KeyboardRelay />
+        <SessionPresence />
         <Launcher />
       </WindowManagerProvider>
     </div>
