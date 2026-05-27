@@ -36,6 +36,49 @@ function getDefaultShell(): string {
   return process.env.VR_SHELL || userInfo().shell || 'bash';
 }
 
+/**
+ * Build the command + env for spawning the user's shell, with a tiny
+ * bootstrap that restores `TMUX`/`TMUX_PANE` when present. node-pty's
+ * `_sanitizeEnv` unconditionally strips those to prevent accidental
+ * nested-tmux setups, but our PTYs run on the user's own box and should
+ * attach to their existing tmux server — without `TMUX`, `tmux ls`
+ * defaults to the empty socket under `TMUX_TMPDIR/tmux-$UID/default`
+ * instead of the one the user is actually using.
+ *
+ * The smuggled vars use names node-pty won't touch; the bootstrap
+ * re-exports them and execs into the real shell so there's no
+ * lingering wrapper process.
+ */
+function buildShellSpawn(): {
+  command: string;
+  args: string[];
+  env: NodeJS.ProcessEnv;
+} {
+  const shell = getDefaultShell();
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  const hostTmux = process.env.TMUX;
+  const hostTmuxPane = process.env.TMUX_PANE;
+
+  if (hostTmux === undefined && hostTmuxPane === undefined) {
+    return { command: shell, args: [], env };
+  }
+
+  if (hostTmux !== undefined) env.VR_HOST_TMUX = hostTmux;
+  if (hostTmuxPane !== undefined) env.VR_HOST_TMUX_PANE = hostTmuxPane;
+
+  const bootstrap =
+    '[ -n "$VR_HOST_TMUX" ] && export TMUX="$VR_HOST_TMUX"; ' +
+    '[ -n "$VR_HOST_TMUX_PANE" ] && export TMUX_PANE="$VR_HOST_TMUX_PANE"; ' +
+    'unset VR_HOST_TMUX VR_HOST_TMUX_PANE; ' +
+    'exec "$1"';
+
+  return {
+    command: '/bin/sh',
+    args: ['-c', bootstrap, 'vr-ide-bootstrap', shell],
+    env,
+  };
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -91,10 +134,7 @@ export function loadAuthorizedClients(
  * Formats a client ID for log output, prefixing it with the label from
  * the allowlist when one was provided.
  */
-export function formatClient(
-  id: string,
-  allowlist: AuthorizedClients,
-): string {
+export function formatClient(id: string, allowlist: AuthorizedClients): string {
   const label = allowlist.get(id);
   return label ? `${label} (${id})` : id;
 }
@@ -126,7 +166,10 @@ export function isAuthorized(
   if (auth.trustAll) return true;
 
   const clientId = extractClientId(req);
-  if (!clientId || !loadAuthorizedClients(auth.authFile, logger).has(clientId)) {
+  if (
+    !clientId ||
+    !loadAuthorizedClients(auth.authFile, logger).has(clientId)
+  ) {
     logger.warn(
       `[pty] connection rejected from ${req.headers.origin ?? 'unknown origin'}\n` +
         `  Client ID: ${clientId ?? 'missing'}\n` +
@@ -158,16 +201,16 @@ export function attachPtyHandlers(
       `[pty] connection from ${req.headers.origin ?? 'unknown'} (${who})`,
     );
 
-    const shell = getDefaultShell();
-    const ptyProcess = pty.spawn(shell, [], {
+    const { command, args, env } = buildShellSpawn();
+    const ptyProcess = pty.spawn(command, args, {
       name: 'xterm-256color',
       cols: 120,
       rows: 38,
       cwd: process.cwd(),
-      env: process.env,
+      env,
     });
 
-    logger.info(`[pty] spawned ${shell} (pid ${ptyProcess.pid})`);
+    logger.info(`[pty] spawned ${command} (pid ${ptyProcess.pid})`);
 
     ptyProcess.onData((data: string) => {
       if (ws.readyState === WebSocket.OPEN) {
