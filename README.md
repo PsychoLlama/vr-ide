@@ -52,4 +52,5 @@ reachable to anyone holding the same UUID).
 | `Alt+N` / `Alt+Enter` | New terminal at gaze position |
 | `Alt+W` | Close focused window |
 | `Alt+M` | Move window (toggle select/place mode) |
+| `Alt+Q` | Exit immersive VR (back to embedded scene) |
 | `Escape` | Cancel move / close launcher |

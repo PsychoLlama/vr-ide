@@ -76,6 +76,14 @@ export function useKeyDispatcher(): (event: DispatchableKeyEvent) => boolean {
               startSelectMode();
             }
             return true;
+          case 'q': {
+            // Drop out of immersive WebXR back to the embedded scene. The
+            // primary trigger is the relay tab, since the headset's own
+            // system-level gesture works in-headset.
+            const scene = document.querySelector('a-scene');
+            scene?.exitVR();
+            return true;
+          }
         }
       }
 
