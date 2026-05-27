@@ -46,36 +46,57 @@ function formatError(err: unknown): string {
 }
 
 /**
+ * `id -> label?` for each authorized client. `.has(id)` is the auth
+ * check; `.get(id)` fetches the optional label for log lines.
+ */
+export type AuthorizedClients = Map<string, string | undefined>;
+
+/**
  * Reads the authorized client IDs from disk. Called per connection so edits
  * take effect without restarting the server.
  */
 export function loadAuthorizedClients(
   authFile: string,
   logger: Logger,
-): Set<string> {
+): AuthorizedClients {
   let raw: string;
   try {
     raw = readFileSync(authFile, 'utf8');
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return new Set();
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return new Map();
     logger.error(`[pty] failed to read ${authFile}: ${formatError(err)}`);
-    return new Set();
+    return new Map();
   }
 
   try {
     const parsed: unknown = JSON.parse(raw);
-    const ids = new Set<string>();
-    if (!isObject(parsed) || !Array.isArray(parsed.clients)) return ids;
+    const clients: AuthorizedClients = new Map();
+    if (!isObject(parsed) || !Array.isArray(parsed.clients)) return clients;
     for (const entry of parsed.clients as unknown[]) {
-      if (isObject(entry) && typeof entry.id === 'string') {
-        ids.add(entry.id.toLowerCase());
-      }
+      if (!isObject(entry) || typeof entry.id !== 'string') continue;
+      const label =
+        typeof entry.label === 'string' && entry.label.length > 0
+          ? entry.label
+          : undefined;
+      clients.set(entry.id.toLowerCase(), label);
     }
-    return ids;
+    return clients;
   } catch (err) {
     logger.error(`[pty] failed to parse ${authFile}: ${formatError(err)}`);
-    return new Set();
+    return new Map();
   }
+}
+
+/**
+ * Formats a client ID for log output, prefixing it with the label from
+ * the allowlist when one was provided.
+ */
+export function formatClient(
+  id: string,
+  allowlist: AuthorizedClients,
+): string {
+  const label = allowlist.get(id);
+  return label ? `${label} (${id})` : id;
 }
 
 /**
@@ -127,9 +148,15 @@ export function isAuthorized(
 export function attachPtyHandlers(
   wss: WebSocketServer,
   logger: Logger,
+  auth: AuthConfig,
 ): void {
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
-    logger.info(`[pty] connection from ${req.headers.origin ?? 'unknown'}`);
+    const clientId = extractClientId(req);
+    const allowlist = loadAuthorizedClients(auth.authFile, logger);
+    const who = clientId ? formatClient(clientId, allowlist) : 'unknown client';
+    logger.info(
+      `[pty] connection from ${req.headers.origin ?? 'unknown'} (${who})`,
+    );
 
     const shell = getDefaultShell();
     const ptyProcess = pty.spawn(shell, [], {

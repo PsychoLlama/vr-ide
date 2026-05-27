@@ -36,7 +36,7 @@ export default defineConfig({
       watchDir: serverDir,
       backend: {
         isAuthorized: (req, logger) => isAuthorized(req, auth, logger),
-        attachHandlers: attachPtyHandlers,
+        attachHandlers: (wss, logger) => attachPtyHandlers(wss, logger, auth),
       },
     }),
     wsRoutePlugin({
@@ -45,7 +45,8 @@ export default defineConfig({
       watchDir: serverDir,
       backend: {
         isAuthorized: (req, logger) => isKeyboardAuthorized(req, auth, logger),
-        attachHandlers: attachKeyboardHandlers,
+        attachHandlers: (wss, logger) =>
+          attachKeyboardHandlers(wss, logger, auth),
       },
     }),
     wsRoutePlugin({
@@ -54,7 +55,8 @@ export default defineConfig({
       watchDir: serverDir,
       backend: {
         isAuthorized: (req, logger) => isSessionAuthorized(req, auth, logger),
-        attachHandlers: attachSessionHandlers,
+        attachHandlers: (wss, logger) =>
+          attachSessionHandlers(wss, logger, auth),
       },
     }),
   ],

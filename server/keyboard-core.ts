@@ -3,6 +3,7 @@ import type { IncomingMessage } from 'http';
 import {
   AuthConfig,
   Logger,
+  formatClient,
   loadAuthorizedClients,
 } from './pty-core.ts';
 
@@ -64,6 +65,7 @@ const rooms = new Map<string, Set<WebSocket>>();
 export function attachKeyboardHandlers(
   wss: WebSocketServer,
   logger: Logger,
+  auth: AuthConfig,
 ): void {
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     const target = extractTargetClientId(req);
@@ -73,6 +75,8 @@ export function attachKeyboardHandlers(
       return;
     }
 
+    const who = formatClient(target, loadAuthorizedClients(auth.authFile, logger));
+
     let room = rooms.get(target);
     if (!room) {
       room = new Set();
@@ -80,7 +84,7 @@ export function attachKeyboardHandlers(
     }
     room.add(ws);
     logger.info(
-      `[keyboard] joined room ${target} (now ${room.size} client${room.size === 1 ? '' : 's'})`,
+      `[keyboard] joined room ${who} (now ${room.size} client${room.size === 1 ? '' : 's'})`,
     );
 
     ws.on('message', (message: Buffer) => {
@@ -100,11 +104,11 @@ export function attachKeyboardHandlers(
         peers.delete(ws);
         if (peers.size === 0) rooms.delete(target);
       }
-      logger.info(`[keyboard] left room ${target}`);
+      logger.info(`[keyboard] left room ${who}`);
     });
 
     ws.on('error', (err) => {
-      logger.error(`[keyboard] socket error: ${String(err)}`);
+      logger.error(`[keyboard] socket error for ${who}: ${String(err)}`);
     });
   });
 

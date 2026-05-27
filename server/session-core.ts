@@ -3,6 +3,7 @@ import type { IncomingMessage } from 'http';
 import {
   AuthConfig,
   Logger,
+  formatClient,
   loadAuthorizedClients,
 } from './pty-core.ts';
 
@@ -59,6 +60,7 @@ function formatDuration(ms: number): string {
 export function attachSessionHandlers(
   wss: WebSocketServer,
   logger: Logger,
+  auth: AuthConfig,
 ): void {
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     const clientId = extractClientId(req);
@@ -66,17 +68,21 @@ export function attachSessionHandlers(
       ws.close();
       return;
     }
+    const who = formatClient(
+      clientId,
+      loadAuthorizedClients(auth.authFile, logger),
+    );
     const origin = req.headers.origin ?? 'unknown origin';
     const openedAt = Date.now();
-    logger.info(`[session] ${clientId} connected from ${origin}`);
+    logger.info(`[session] ${who} connected from ${origin}`);
 
     ws.on('close', () => {
       const duration = formatDuration(Date.now() - openedAt);
-      logger.info(`[session] ${clientId} disconnected after ${duration}`);
+      logger.info(`[session] ${who} disconnected after ${duration}`);
     });
 
     ws.on('error', (err) => {
-      logger.error(`[session] socket error for ${clientId}: ${String(err)}`);
+      logger.error(`[session] socket error for ${who}: ${String(err)}`);
     });
   });
 
