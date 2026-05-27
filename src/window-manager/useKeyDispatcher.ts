@@ -1,6 +1,7 @@
 import React from 'react';
 import { useWindowManager } from './WindowManagerContext';
 import { useCameraDirection } from './hooks/useCameraDirection';
+import { useGazedWindowId } from './hooks/useGazedWindowId';
 import { keyEventToInput } from '../key-event-to-input';
 
 /**
@@ -30,6 +31,7 @@ export function useKeyDispatcher(): (event: DispatchableKeyEvent) => boolean {
     state,
     createWindow,
     destroyWindow,
+    focusWindow,
     startSelectMode,
     placeSelectedWindow,
     cancelSelectMode,
@@ -39,6 +41,7 @@ export function useKeyDispatcher(): (event: DispatchableKeyEvent) => boolean {
   } = useWindowManager();
 
   const getPlacement = useCameraDirection();
+  const getGazedWindowId = useGazedWindowId();
 
   // Latest state via ref so the returned function can stay stable across
   // state changes — important because the relay receiver registers it as
@@ -68,6 +71,11 @@ export function useKeyDispatcher(): (event: DispatchableKeyEvent) => boolean {
               destroyWindow(current.focusedWindowId);
             }
             return true;
+          case 'f': {
+            const id = getGazedWindowId();
+            if (id) focusWindow(id);
+            return true;
+          }
           case 'm':
             if (current.selectMode.active) {
               const { position, rotation } = getPlacement();
@@ -109,6 +117,7 @@ export function useKeyDispatcher(): (event: DispatchableKeyEvent) => boolean {
     [
       createWindow,
       destroyWindow,
+      focusWindow,
       startSelectMode,
       placeSelectedWindow,
       cancelSelectMode,
@@ -116,6 +125,7 @@ export function useKeyDispatcher(): (event: DispatchableKeyEvent) => boolean {
       closeLauncher,
       sendInputToFocused,
       getPlacement,
+      getGazedWindowId,
     ],
   );
 }

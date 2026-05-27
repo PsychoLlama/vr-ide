@@ -71,6 +71,7 @@ export const TerminalWindow: React.FC<Props> = ({
         width={WINDOW_WIDTH}
         height={WINDOW_HEIGHT}
         onClick={handleClick}
+        data-window-id={window.id}
       />
 
       {/* Focus border */}

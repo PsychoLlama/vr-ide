@@ -62,6 +62,7 @@ A laptop tab can drive the headset. Open `/keyboard/<headset-client-id>` on the 
 | `Alt+Space`           | Open launcher                              |
 | `Alt+N` / `Alt+Enter` | New terminal at gaze position              |
 | `Alt+W`               | Close focused window                       |
+| `Alt+F`               | Focus the window under the gaze ray        |
 | `Alt+M`               | Move window (toggle select/place mode)     |
 | `Alt+Q`               | Exit immersive VR (back to embedded scene) |
 | `Escape`              | Cancel move / close launcher               |
