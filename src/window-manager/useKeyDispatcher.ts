@@ -81,7 +81,7 @@ export function useKeyDispatcher(): (event: DispatchableKeyEvent) => boolean {
             // primary trigger is the relay tab, since the headset's own
             // system-level gesture works in-headset.
             const scene = document.querySelector('a-scene');
-            scene?.exitVR();
+            void scene?.exitVR();
             return true;
           }
         }
