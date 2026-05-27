@@ -25,7 +25,7 @@ export default defineConfig({
       path: '/pty',
       watchDir: resolve(projectRoot, 'server'),
       backend: {
-        isAuthorized: (req) => isAuthorized(req, auth),
+        isAuthorized: (req, logger) => isAuthorized(req, auth, logger),
         attachHandlers: attachPtyHandlers,
       },
     }),

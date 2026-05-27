@@ -9,6 +9,16 @@ import { isClientMessage } from '../src/pty-protocol.ts';
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/**
+ * Minimal logger contract. Vite's `server.config.logger` satisfies this
+ * structurally, so the caller can hand it in directly.
+ */
+export interface Logger {
+  info(msg: string): void;
+  warn(msg: string): void;
+  error(msg: string): void;
+}
+
 export interface AuthConfig {
   /** Path to the JSON file listing authorized client IDs. */
   authFile: string;
@@ -30,17 +40,25 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+function formatError(err: unknown): string {
+  if (err instanceof Error) return err.stack ?? err.message;
+  return String(err);
+}
+
 /**
  * Reads the authorized client IDs from disk. Called per connection so edits
  * take effect without restarting the server.
  */
-export function loadAuthorizedClients(authFile: string): Set<string> {
+export function loadAuthorizedClients(
+  authFile: string,
+  logger: Logger,
+): Set<string> {
   let raw: string;
   try {
     raw = readFileSync(authFile, 'utf8');
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return new Set();
-    console.error(`Failed to read ${authFile}:`, err);
+    logger.error(`[pty] failed to read ${authFile}: ${formatError(err)}`);
     return new Set();
   }
 
@@ -55,7 +73,7 @@ export function loadAuthorizedClients(authFile: string): Set<string> {
     }
     return ids;
   } catch (err) {
-    console.error(`Failed to parse ${authFile}:`, err);
+    logger.error(`[pty] failed to parse ${authFile}: ${formatError(err)}`);
     return new Set();
   }
 }
@@ -79,13 +97,17 @@ export function extractClientId(req: IncomingMessage): string | null {
  * Returns true when the request bears an authorized client ID (or auth is
  * disabled). Logs rejection reasons to guide setup.
  */
-export function isAuthorized(req: IncomingMessage, auth: AuthConfig): boolean {
+export function isAuthorized(
+  req: IncomingMessage,
+  auth: AuthConfig,
+  logger: Logger,
+): boolean {
   if (auth.trustAll) return true;
 
   const clientId = extractClientId(req);
-  if (!clientId || !loadAuthorizedClients(auth.authFile).has(clientId)) {
-    console.warn(
-      `PTY connection rejected from ${req.headers.origin ?? 'unknown origin'}\n` +
+  if (!clientId || !loadAuthorizedClients(auth.authFile, logger).has(clientId)) {
+    logger.warn(
+      `[pty] connection rejected from ${req.headers.origin ?? 'unknown origin'}\n` +
         `  Client ID: ${clientId ?? 'missing'}\n` +
         `  To authorize, add the ID to ${auth.authFile}:\n` +
         `    { "clients": [{ "id": "<uuid>", "label": "optional" }] }\n` +
@@ -102,9 +124,12 @@ export function isAuthorized(req: IncomingMessage, auth: AuthConfig): boolean {
  * on close) onto a WebSocketServer. The server itself (port, noServer
  * mode, host binding) is the caller's choice.
  */
-export function attachPtyHandlers(wss: WebSocketServer): void {
+export function attachPtyHandlers(
+  wss: WebSocketServer,
+  logger: Logger,
+): void {
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
-    console.log(`PTY connection from origin: ${req.headers.origin}`);
+    logger.info(`[pty] connection from ${req.headers.origin ?? 'unknown'}`);
 
     const shell = getDefaultShell();
     const ptyProcess = pty.spawn(shell, [], {
@@ -115,7 +140,7 @@ export function attachPtyHandlers(wss: WebSocketServer): void {
       env: process.env,
     });
 
-    console.log(`Spawned ${shell} with PID ${ptyProcess.pid}`);
+    logger.info(`[pty] spawned ${shell} (pid ${ptyProcess.pid})`);
 
     ptyProcess.onData((data: string) => {
       if (ws.readyState === WebSocket.OPEN) {
@@ -124,7 +149,7 @@ export function attachPtyHandlers(wss: WebSocketServer): void {
     });
 
     ptyProcess.onExit(({ exitCode, signal }) => {
-      console.log(`PTY exited with code ${exitCode}, signal ${signal}`);
+      logger.info(`[pty] exited (code ${exitCode}, signal ${signal})`);
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'exit', exitCode, signal }));
         ws.close();
@@ -135,7 +160,7 @@ export function attachPtyHandlers(wss: WebSocketServer): void {
       try {
         const msg: unknown = JSON.parse(message.toString());
         if (!isClientMessage(msg)) {
-          console.warn('Received invalid message from client');
+          logger.warn('[pty] received invalid message from client');
           return;
         }
 
@@ -151,22 +176,22 @@ export function attachPtyHandlers(wss: WebSocketServer): void {
             break;
         }
       } catch (err) {
-        console.error('Failed to parse message:', err);
+        logger.error(`[pty] failed to parse message: ${formatError(err)}`);
       }
     });
 
     ws.on('close', () => {
-      console.log('WebSocket closed, killing PTY');
+      logger.info('[pty] socket closed, killing PTY');
       ptyProcess.kill();
     });
 
     ws.on('error', (err) => {
-      console.error('WebSocket error:', err);
+      logger.error(`[pty] socket error: ${formatError(err)}`);
       ptyProcess.kill();
     });
   });
 
   wss.on('error', (err) => {
-    console.error('WebSocket server error:', err);
+    logger.error(`[pty] server error: ${formatError(err)}`);
   });
 }

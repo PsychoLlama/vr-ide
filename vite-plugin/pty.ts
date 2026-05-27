@@ -4,14 +4,24 @@ import type { Duplex } from 'stream';
 import { WebSocketServer } from 'ws';
 
 /**
+ * Minimal logger contract the backend writes through. Vite's
+ * `server.config.logger` satisfies this structurally.
+ */
+export interface Logger {
+  info(msg: string): void;
+  warn(msg: string): void;
+  error(msg: string): void;
+}
+
+/**
  * Contract the plugin needs from a PTY backend. Lives here (not in
  * `server/`) so the backend stays unaware of Vite.
  */
 export interface PtyBackend {
   /** Returns true if the upgrade request is allowed to open a PTY. */
-  isAuthorized(req: IncomingMessage): boolean;
+  isAuthorized(req: IncomingMessage, logger: Logger): boolean;
   /** Wires per-connection PTY handlers onto a WebSocketServer. */
-  attachHandlers(wss: WebSocketServer): void;
+  attachHandlers(wss: WebSocketServer, logger: Logger): void;
 }
 
 export interface PtyPluginOptions {
@@ -39,8 +49,9 @@ export function ptyPlugin(options: PtyPluginOptions): Plugin {
   return {
     name: 'vr-ide:pty',
     configureServer(server) {
+      const logger = server.config.logger;
       const wss = new WebSocketServer({ noServer: true });
-      backend.attachHandlers(wss);
+      backend.attachHandlers(wss, logger);
 
       server.httpServer?.on(
         'upgrade',
@@ -55,7 +66,7 @@ export function ptyPlugin(options: PtyPluginOptions): Plugin {
           // Leave non-PTY upgrades (Vite HMR, etc.) alone.
           if (pathname !== path) return;
 
-          if (!backend.isAuthorized(req)) {
+          if (!backend.isAuthorized(req, logger)) {
             socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
             socket.destroy();
             return;
