@@ -53,6 +53,18 @@ export const XTermTexture: React.FC<Props> = ({
   const compositeRef = React.useRef<(() => void) | null>(null);
   const wsRef = React.useRef<WebSocket | null>(null);
 
+  // Hold the latest callbacks in refs so the mount effect doesn't re-run
+  // (and tear down the terminal + websocket) whenever the parent re-renders
+  // with fresh closures.
+  const onReadyRef = React.useRef(onReady);
+  const onDestroyRef = React.useRef(onDestroy);
+  const onExitRef = React.useRef(onExit);
+  React.useEffect(() => {
+    onReadyRef.current = onReady;
+    onDestroyRef.current = onDestroy;
+    onExitRef.current = onExit;
+  }, [onReady, onDestroy, onExit]);
+
   React.useEffect(() => {
     if (!containerRef.current || !planeRef.current) return;
 
@@ -129,11 +141,11 @@ export const XTermTexture: React.FC<Props> = ({
             type: 'resize',
             cols: terminal.cols,
             rows: terminal.rows,
-          })
+          }),
         );
 
         // Notify parent that we're ready
-        if (onReady) {
+        if (onReadyRef.current) {
           const handle: XTermTextureHandle = {
             sendInput: (data: string) => {
               if (ws.readyState === WebSocket.OPEN) {
@@ -142,7 +154,7 @@ export const XTermTexture: React.FC<Props> = ({
             },
             getTexture: () => textureRef.current,
           };
-          onReady(handle);
+          onReadyRef.current(handle);
         }
       };
 
@@ -159,9 +171,9 @@ export const XTermTexture: React.FC<Props> = ({
               break;
             case 'exit':
               terminal.writeln(
-                `\r\n[Process exited with code ${msg.exitCode}]`
+                `\r\n[Process exited with code ${msg.exitCode}]`,
               );
-              onExit?.(msg.exitCode);
+              onExitRef.current?.(msg.exitCode);
               break;
           }
         } catch (err) {
@@ -269,9 +281,9 @@ export const XTermTexture: React.FC<Props> = ({
       cancelAnimationFrame(animationId);
       wsRef.current?.close();
       terminal.dispose();
-      onDestroy?.();
+      onDestroyRef.current?.();
     };
-  }, [windowId, planeRef, onReady, onDestroy, onExit]);
+  }, [windowId, planeRef]);
 
   return (
     <div
