@@ -3,14 +3,19 @@ import react from '@vitejs/plugin-react';
 import { vanillaExtractPlugin } from '@vanilla-extract/vite-plugin';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { ptyPlugin } from './vite-plugin/pty.ts';
+import { wsRoutePlugin } from './vite-plugin/ws-route.ts';
 import {
   attachPtyHandlers,
   isAuthorized,
   resolveAuthFile,
 } from './server/pty-core.ts';
+import {
+  attachKeyboardHandlers,
+  isKeyboardAuthorized,
+} from './server/keyboard-core.ts';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
+const serverDir = resolve(projectRoot, 'server');
 
 const auth = {
   authFile: resolveAuthFile(),
@@ -21,18 +26,28 @@ export default defineConfig({
   plugins: [
     react(),
     vanillaExtractPlugin(),
-    ptyPlugin({
-      path: '/pty',
-      watchDir: resolve(projectRoot, 'server'),
+    wsRoutePlugin({
+      name: 'vr-ide:pty',
+      match: (p) => p === '/pty',
+      watchDir: serverDir,
       backend: {
         isAuthorized: (req, logger) => isAuthorized(req, auth, logger),
         attachHandlers: attachPtyHandlers,
       },
     }),
+    wsRoutePlugin({
+      name: 'vr-ide:keyboard',
+      match: (p) => p.startsWith('/keyboard/'),
+      watchDir: serverDir,
+      backend: {
+        isAuthorized: (req, logger) => isKeyboardAuthorized(req, auth, logger),
+        attachHandlers: attachKeyboardHandlers,
+      },
+    }),
   ],
   server: {
     // Permit access via cloudflared (and any other reverse proxy hostname).
-    // Auth is enforced by the clientId allowlist on the PTY upgrade path.
+    // Auth is enforced by the clientId allowlist on each WS route.
     allowedHosts: true,
   },
 });

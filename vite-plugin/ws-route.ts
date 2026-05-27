@@ -14,21 +14,23 @@ export interface Logger {
 }
 
 /**
- * Contract the plugin needs from a PTY backend. Lives here (not in
- * `server/`) so the backend stays unaware of Vite.
+ * Contract a WebSocket backend implements. Lives here (not in `server/`)
+ * so backends stay unaware of Vite.
  */
-export interface PtyBackend {
-  /** Returns true if the upgrade request is allowed to open a PTY. */
+export interface WsBackend {
+  /** Returns true if the upgrade request is allowed through. */
   isAuthorized(req: IncomingMessage, logger: Logger): boolean;
-  /** Wires per-connection PTY handlers onto a WebSocketServer. */
+  /** Wires per-connection handlers onto a WebSocketServer. */
   attachHandlers(wss: WebSocketServer, logger: Logger): void;
 }
 
-export interface PtyPluginOptions {
-  /** Path the WebSocket upgrade must target (e.g. `/pty`). */
-  path: string;
-  /** Backend that owns the actual PTY lifecycle. */
-  backend: PtyBackend;
+export interface WsRouteOptions {
+  /** Plugin name as it appears in Vite logs (e.g. `vr-ide:pty`). */
+  name: string;
+  /** Returns true for upgrade paths this route should claim. */
+  match: (pathname: string) => boolean;
+  /** Backend that owns the per-connection lifecycle. */
+  backend: WsBackend;
   /**
    * Absolute directory whose files trigger a full Vite restart on change.
    * Use this for the backend's source so plugin + backend reload together.
@@ -37,17 +39,17 @@ export interface PtyPluginOptions {
 }
 
 /**
- * Mounts a PTY WebSocket endpoint on Vite's HTTP server so the dev server
- * and PTY traffic share a single origin (works behind cloudflared, etc).
+ * Mounts a WebSocket route on Vite's HTTP server so the dev server and
+ * the backend share a single origin (works behind cloudflared, etc).
  *
  * Watching `watchDir` triggers `server.restart()` on change, which gives
  * us live reload for the backend at the cost of dropping live sessions.
  */
-export function ptyPlugin(options: PtyPluginOptions): Plugin {
-  const { path, backend, watchDir } = options;
+export function wsRoutePlugin(options: WsRouteOptions): Plugin {
+  const { name, match, backend, watchDir } = options;
 
   return {
-    name: 'vr-ide:pty',
+    name,
     configureServer(server) {
       const logger = server.config.logger;
       const wss = new WebSocketServer({ noServer: true });
@@ -63,8 +65,8 @@ export function ptyPlugin(options: PtyPluginOptions): Plugin {
             return;
           }
 
-          // Leave non-PTY upgrades (Vite HMR, etc.) alone.
-          if (pathname !== path) return;
+          // Leave non-matching upgrades (Vite HMR, other routes) alone.
+          if (!match(pathname)) return;
 
           if (!backend.isAuthorized(req, logger)) {
             socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');

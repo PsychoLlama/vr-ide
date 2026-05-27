@@ -82,7 +82,7 @@ export function loadAuthorizedClients(
  * Extracts and validates the clientId query parameter from the upgrade
  * request URL. Returns null when missing or malformed.
  */
-export function extractClientId(req: IncomingMessage): string | null {
+function extractClientId(req: IncomingMessage): string | null {
   try {
     const url = new URL(req.url ?? '', 'http://localhost');
     const id = url.searchParams.get('clientId');

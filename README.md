@@ -32,6 +32,18 @@ Floating terminal windows rendered as 3D planes. Each terminal runs a real PTY s
 
 Windows spawn where you're looking and can be repositioned freely in 3D space. A spotlight-style launcher (`Alt+Space`) provides quick access to apps.
 
+### Keyboard Relay
+
+A laptop tab can drive the headset. Open `/keyboard/<headset-client-id>`
+on the laptop; every keydown is shipped to the headset and dispatched
+through the same handler real keypresses go through. Alt-combinations
+trigger window-manager actions (`Alt+N` spawns a terminal at the gaze
+position, `Alt+W` closes the focused one, etc.), everything else goes
+to the focused terminal. The headset's client ID must be in
+`.authorized-clients.json` (the laptop tab itself doesn't need to be
+authorized — it's a dumb keyboard pipe, and `/pty` is already
+reachable to anyone holding the same UUID).
+
 ## Keybindings
 
 | Key | Action |
