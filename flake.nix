@@ -26,11 +26,12 @@
         system: pkgs:
         pkgs.mkShell {
           packages = [
+            pkgs.cloudflared
+            pkgs.just
             pkgs.nodejs
             pkgs.pnpm
-            pkgs.just
+            pkgs.python3 # Required for node-gyp (native modules)
             pkgs.treefmt
-            pkgs.python3  # Required for node-gyp (native modules)
           ];
         }
       );

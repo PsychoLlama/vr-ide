@@ -112,10 +112,12 @@ export const XTermTexture: React.FC<Props> = ({
 
     let animationId: number;
 
-    // Connect to PTY server
+    // Connect to PTY server (same origin as the page so cloudflared etc.
+    // can tunnel a single host).
     const connectWebSocket = () => {
+      const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
       const ws = new WebSocket(
-        `ws://127.0.0.1:8001/?clientId=${getClientId()}`,
+        `${wsProtocol}//${location.host}/pty?clientId=${getClientId()}`,
       );
       wsRef.current = ws;
 

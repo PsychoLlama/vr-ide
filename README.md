@@ -6,15 +6,21 @@ An experimental development environment built for virtual reality. This project 
 
 ## Running
 
-Start the PTY server and dev server:
-
 ```sh
 pnpm install
-pnpm run pty &
 pnpm run dev
 ```
 
-Then open the URL in a WebXR-compatible browser.
+Then open the URL in a WebXR-compatible browser. The dev server hosts both
+the app and the PTY WebSocket endpoint (`/pty`) on a single origin, so it
+also works behind a tunnel like `cloudflared`. The first connection is
+rejected and logs a UUID to add to `.authorized-clients.json`:
+
+```json
+{ "clients": [{ "id": "<uuid>", "label": "optional" }] }
+```
+
+Set `VR_TRUST_ALL=1` to skip the allowlist (only safe for purely local use).
 
 ## Features
 
