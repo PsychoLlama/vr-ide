@@ -5,13 +5,16 @@ export const page = style({
   background: '#1e1e1e',
   color: '#abb2bf',
   fontFamily: 'Inter Variable, system-ui, sans-serif',
+});
+
+export const content = style({
+  maxWidth: '720px',
+  margin: '0 auto',
   padding: '2rem',
   boxSizing: 'border-box',
   display: 'flex',
   flexDirection: 'column',
   gap: '1.5rem',
-  maxWidth: '720px',
-  margin: '0 auto',
 });
 
 export const heading = style({

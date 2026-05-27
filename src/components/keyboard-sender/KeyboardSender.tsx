@@ -5,6 +5,7 @@ import {
   cardLabel,
   cardValue,
   captureHint,
+  content,
   heading,
   lastKey,
   page,
@@ -53,7 +54,9 @@ export const KeyboardSender: React.FC = () => {
     return raw.toLowerCase();
   }, []);
 
-  const [status, setStatus] = React.useState<ConnectionStatus>({ kind: 'idle' });
+  const [status, setStatus] = React.useState<ConnectionStatus>({
+    kind: 'idle',
+  });
   const [lastSent, setLastSent] = React.useState<string>('');
   const wsRef = React.useRef<WebSocket | null>(null);
 
@@ -106,37 +109,39 @@ export const KeyboardSender: React.FC = () => {
 
   return (
     <div className={page}>
-      <div>
-        <h1 className={heading}>VR-IDE Keyboard Relay</h1>
-        <p className={subheading}>
-          Keys typed in this tab are forwarded to the headset, where Alt-
-          combinations drive the window manager and everything else goes
-          to the focused terminal — the same as typing locally in VR.
-        </p>
-      </div>
-
-      <div className={card}>
-        <div className={cardLabel}>Target client</div>
-        <div className={cardValue}>
-          {target ?? (
-            <span className={statusError}>
-              Missing or invalid UUID in path; expected{' '}
-              <code>/keyboard/&lt;uuid&gt;</code>
-            </span>
-          )}
+      <div className={content}>
+        <div>
+          <h1 className={heading}>VR-IDE Keyboard Relay</h1>
+          <p className={subheading}>
+            Keys typed in this tab are forwarded to the headset, where Alt-
+            combinations drive the window manager and everything else goes to
+            the focused terminal — the same as typing locally in VR.
+          </p>
         </div>
-      </div>
 
-      <div className={card}>
-        <div className={cardLabel}>Connection</div>
-        <div className={cardValue}>{statusContent}</div>
-      </div>
+        <div className={card}>
+          <div className={cardLabel}>Target client</div>
+          <div className={cardValue}>
+            {target ?? (
+              <span className={statusError}>
+                Missing or invalid UUID in path; expected{' '}
+                <code>/keyboard/&lt;uuid&gt;</code>
+              </span>
+            )}
+          </div>
+        </div>
 
-      <div className={card}>
-        <div className={cardLabel}>Last key sent</div>
-        <div className={lastKey}>{lastSent || '—'}</div>
-        <div className={captureHint}>
-          This tab must stay focused for keys to be captured.
+        <div className={card}>
+          <div className={cardLabel}>Connection</div>
+          <div className={cardValue}>{statusContent}</div>
+        </div>
+
+        <div className={card}>
+          <div className={cardLabel}>Last key sent</div>
+          <div className={lastKey}>{lastSent || '—'}</div>
+          <div className={captureHint}>
+            This tab must stay focused for keys to be captured.
+          </div>
         </div>
       </div>
     </div>
