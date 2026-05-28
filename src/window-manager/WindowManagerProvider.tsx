@@ -1,6 +1,6 @@
 import React from 'react';
 import { WindowStore, createWindow as storeCreateWindow } from '../vr/store';
-import type { Vector3, TerminalRegistry, XTermTextureHandle } from './types';
+import type { Vector3, TerminalRegistry, TerminalInputSink } from './types';
 import {
   WindowManagerContext,
   WindowManagerContextValue,
@@ -22,8 +22,8 @@ export const WindowManagerProvider: React.FC<WindowManagerProviderProps> = ({
   const terminalRegistry = React.useRef<TerminalRegistry>(new Map());
 
   const registerTerminal = React.useCallback(
-    (id: string, handle: XTermTextureHandle) => {
-      terminalRegistry.current.set(id, handle);
+    (id: string, sendInput: TerminalInputSink) => {
+      terminalRegistry.current.set(id, sendInput);
     },
     [],
   );
@@ -89,10 +89,8 @@ export const WindowManagerProvider: React.FC<WindowManagerProviderProps> = ({
     (data: string) => {
       const current = store.getState();
       if (!current.focusedWindowId) return;
-      const handle = terminalRegistry.current.get(current.focusedWindowId);
-      if (handle) {
-        handle.sendInput(data);
-      }
+      const send = terminalRegistry.current.get(current.focusedWindowId);
+      if (send) send(data);
     },
     [store],
   );

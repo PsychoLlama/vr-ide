@@ -1,8 +1,5 @@
 export { WindowManagerProvider } from './WindowManagerProvider';
 export { WindowManagerContext, useWindowManager } from './WindowManagerContext';
-export { WindowRenderer } from './WindowRenderer';
-export { TerminalWindow } from './TerminalWindow';
-export { WindowBorder } from './WindowBorder';
 export { KeyboardHandler } from './KeyboardHandler';
 export { KeyboardRelay } from './KeyboardRelay';
 export { SessionPresence } from './SessionPresence';
@@ -14,6 +11,6 @@ export type {
   WindowManagerState,
   WindowManagerAction,
   SelectModeState,
-  XTermTextureHandle,
+  TerminalInputSink,
   TerminalRegistry,
 } from './types';

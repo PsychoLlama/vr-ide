@@ -4,7 +4,7 @@ import type {
   WindowManagerState,
   Vector3,
   TerminalRegistry,
-  XTermTextureHandle,
+  TerminalInputSink,
   WindowState,
 } from './types';
 
@@ -23,7 +23,7 @@ export interface WindowManagerContextValue {
 
   // Terminal registry for input routing
   terminalRegistry: React.RefObject<TerminalRegistry>;
-  registerTerminal: (id: string, handle: XTermTextureHandle) => void;
+  registerTerminal: (id: string, sendInput: TerminalInputSink) => void;
   unregisterTerminal: (id: string) => void;
 
   // Convenience methods
