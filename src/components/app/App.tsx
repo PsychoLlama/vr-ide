@@ -10,9 +10,9 @@ import {
   Launcher,
   SessionPresence,
   useWindowManager,
-  useCameraDirection,
 } from '../../window-manager';
 import { WindowManager } from '../../vr/window-manager';
+import { getCameraPlacement } from '../../vr/camera';
 import { KeyboardSender } from '../keyboard-sender/KeyboardSender';
 
 export const App = () => {
@@ -56,7 +56,6 @@ interface SceneWindowsProps {
  */
 const SceneWindows: React.FC<SceneWindowsProps> = ({ sceneRef }) => {
   const { store, registerTerminal, unregisterTerminal } = useWindowManager();
-  const getPlacement = useCameraDirection();
 
   React.useEffect(() => {
     const scene = sceneRef.current;
@@ -65,14 +64,14 @@ const SceneWindows: React.FC<SceneWindowsProps> = ({ sceneRef }) => {
     const manager = new WindowManager({
       parent: scene,
       store,
-      getSelectPlacement: getPlacement,
+      getSelectPlacement: getCameraPlacement,
       registerTerminal,
       unregisterTerminal,
     });
     manager.start();
 
     return () => manager.stop();
-  }, [sceneRef, store, getPlacement, registerTerminal, unregisterTerminal]);
+  }, [sceneRef, store, registerTerminal, unregisterTerminal]);
 
   return null;
 };

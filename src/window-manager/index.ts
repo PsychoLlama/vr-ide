@@ -4,7 +4,6 @@ export { KeyboardHandler } from './KeyboardHandler';
 export { KeyboardRelay } from './KeyboardRelay';
 export { SessionPresence } from './SessionPresence';
 export { Launcher } from './Launcher';
-export { useCameraDirection } from './hooks/useCameraDirection';
 export type {
   Vector3,
   WindowState,

@@ -1,7 +1,8 @@
 import React from 'react';
 import { getClientId } from '../client-id';
 import { isRelayKeyEvent } from '../keyboard-relay-protocol';
-import { useKeyDispatcher } from './useKeyDispatcher';
+import { dispatchKeyEvent } from '../vr/dispatcher';
+import { useWindowManager } from './WindowManagerContext';
 
 /**
  * Subscribes to the keyboard relay broker at `/keyboard/<own-clientId>`
@@ -12,14 +13,7 @@ import { useKeyDispatcher } from './useKeyDispatcher';
  * etc.
  */
 export const KeyboardRelay: React.FC = () => {
-  const dispatch = useKeyDispatcher();
-
-  // Stash dispatch in a ref so the WebSocket effect can stay mounted
-  // across state changes without reopening the connection.
-  const dispatchRef = React.useRef(dispatch);
-  React.useEffect(() => {
-    dispatchRef.current = dispatch;
-  }, [dispatch]);
+  const { store, terminalRegistry } = useWindowManager();
 
   React.useEffect(() => {
     const clientId = getClientId();
@@ -35,11 +29,14 @@ export const KeyboardRelay: React.FC = () => {
         return;
       }
       if (!isRelayKeyEvent(parsed)) return;
-      dispatchRef.current(parsed);
+      dispatchKeyEvent(parsed, {
+        store,
+        terminals: terminalRegistry.current,
+      });
     };
 
     return () => ws.close();
-  }, []);
+  }, [store, terminalRegistry]);
 
   return null;
 };

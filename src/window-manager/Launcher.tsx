@@ -1,6 +1,6 @@
 import React from 'react';
+import { getCameraPlacement } from '../vr/camera';
 import { useWindowManager } from './WindowManagerContext';
-import { useCameraDirection } from './hooks/useCameraDirection';
 
 interface App {
   id: string;
@@ -15,7 +15,6 @@ interface App {
  */
 export const Launcher: React.FC = () => {
   const { state, closeLauncher, createWindow } = useWindowManager();
-  const getPlacement = useCameraDirection();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [query, setQuery] = React.useState('');
   const [selectedIndex, setSelectedIndex] = React.useState(0);
@@ -28,13 +27,13 @@ export const Launcher: React.FC = () => {
         name: 'Terminal',
         icon: '>_',
         action: () => {
-          const { position, rotation } = getPlacement();
+          const { position, rotation } = getCameraPlacement();
           createWindow(position, rotation);
           closeLauncher();
         },
       },
     ],
-    [createWindow, closeLauncher, getPlacement]
+    [createWindow, closeLauncher],
   );
 
   // Filter apps based on query
