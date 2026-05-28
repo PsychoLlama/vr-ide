@@ -58,8 +58,6 @@ export class WindowController {
   private readonly borderPlanes: Entity[];
   private readonly terminal: TerminalController;
   private readonly clickHandler: () => void;
-  // Reused per-frame scratch vector so `faceCamera` doesn't allocate.
-  private readonly lookAtTarget = new THREE.Vector3();
 
   private cols: number;
   private rows: number;
@@ -148,15 +146,14 @@ export class WindowController {
   }
 
   /**
-   * Rotate the entity so its terminal face (+Z) points at the given
-   * world-space camera position. lookAt orients -Z toward the target,
-   * so we point it at the camera's mirror across the window position;
-   * +Z then naturally points back at the real camera.
+   * Rotate the entity so its terminal face (+Z, the plane's normal)
+   * points at the given world-space camera position. For non-camera
+   * `Object3D`, three.js `lookAt` orients local +Z toward the target —
+   * so passing the camera position directly does exactly what we want.
+   * (Camera/Light are the special case where lookAt uses -Z forward.)
    */
   faceCamera(cameraPos: ThreeLib.Vector3): void {
-    const windowPos = this.root.object3D.position;
-    this.lookAtTarget.copy(windowPos).multiplyScalar(2).sub(cameraPos);
-    this.root.object3D.lookAt(this.lookAtTarget);
+    this.root.object3D.lookAt(cameraPos);
   }
 
   dispose(): void {
