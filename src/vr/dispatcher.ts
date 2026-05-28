@@ -1,6 +1,6 @@
 import { keyEventToInput } from '../key-event-to-input';
 import { getCameraPlacement, getGazedWindowId } from './camera';
-import { STEP_COLS, STEP_ROWS } from './sizing';
+import { DEFAULT_COLS, DEFAULT_ROWS, STEP_COLS, STEP_ROWS } from './sizing';
 import { createWindow as storeCreateWindow, WindowStore } from './store';
 import type { WindowManager } from './window-manager';
 
@@ -88,6 +88,8 @@ export function dispatchKeyEvent(
       case '-':
       case '_':
         return resizeFocused(deps, -STEP_COLS, -STEP_ROWS);
+      case '0':
+        return resetFocusedSize(deps);
     }
   }
 
@@ -133,6 +135,26 @@ function resizeFocused(
       id: state.focusedWindowId,
       cols: window.cols + dCols,
       rows: window.rows + dRows,
+    },
+  });
+  return true;
+}
+
+/**
+ * Reset the focused window back to the default grid size. Bound to
+ * Alt+0 as a sibling to Alt+= / Alt+-, mirroring how browser zoom
+ * Cmd/Ctrl+0 resets to 100 %.
+ */
+function resetFocusedSize(deps: DispatcherDeps): boolean {
+  const { store } = deps;
+  const state = store.getState();
+  if (!state.focusedWindowId) return true;
+  store.dispatch({
+    type: 'RESIZE_WINDOW',
+    payload: {
+      id: state.focusedWindowId,
+      cols: DEFAULT_COLS,
+      rows: DEFAULT_ROWS,
     },
   });
   return true;

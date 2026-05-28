@@ -151,13 +151,25 @@ export class TerminalController {
    * which forwards a `resize` message to the PTY server — SIGWINCH
    * follows from there. The off-screen host is grown to match so xterm's
    * canvas can lay out at the new dimensions; the composite loop picks
-   * up the larger canvas on its next tick.
+   * up the resized canvas on its next tick.
+   *
+   * After resizing we explicitly request a full refresh: xterm only
+   * marks the changed region dirty on resize and won't repaint cells
+   * unless something else (new output, scroll, etc.) triggers a draw.
+   * Without the refresh, the canvas keeps the pre-resize pixel content
+   * inside an outline of the new grid — which on Quest's browser shows
+   * up as content stuck in a sub-region of the plane after shrinking,
+   * or as a frozen image when growing past the old canvas size.
    */
   setSize(cols: number, rows: number): void {
     if (this.terminal.cols === cols && this.terminal.rows === rows) return;
     this.container.style.width = `${cols * HIDDEN_PX_PER_COL}px`;
     this.container.style.height = `${rows * HIDDEN_PX_PER_ROW}px`;
+    // Force a layout flush so xterm reads the new container size when
+    // it lays out its canvas in response to `resize`.
+    void this.container.offsetWidth;
     this.terminal.resize(cols, rows);
+    this.terminal.refresh(0, this.terminal.rows - 1);
   }
 
   /**
