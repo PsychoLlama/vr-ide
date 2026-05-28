@@ -13,6 +13,8 @@ declare global {
   const THREE: typeof ThreeLib;
 }
 
+const TERMINAL_BG = '#1e1e1e';
+
 interface Props {
   /**
    * Unique identifier for this terminal window.
@@ -84,7 +86,7 @@ export const XTermTexture: React.FC<Props> = ({
       allowTransparency: false,
       // OneDarkPro theme
       theme: {
-        background: '#1e1e1e',
+        background: TERMINAL_BG,
         foreground: '#abb2bf',
         cursor: '#ffffff',
         cursorAccent: '#1e1e1e',
@@ -117,8 +119,12 @@ export const XTermTexture: React.FC<Props> = ({
     const canvasAddon = new CanvasAddon();
     terminal.loadAddon(canvasAddon);
 
-    // Focus the terminal so the cursor renders
-    terminal.focus();
+    // Cursor still renders correctly without focus thanks to
+    // cursorInactiveStyle='block'. We avoid calling terminal.focus()
+    // entirely because the container is `inert` (see the JSX), which
+    // would no-op the focus call anyway, and dropping the call keeps
+    // the intent explicit. All input arrives through the keyboard
+    // relay's sendInput, not through xterm's helper textarea.
 
     terminalRef.current = terminal;
 
@@ -234,7 +240,14 @@ export const XTermTexture: React.FC<Props> = ({
 
       // Function to composite all xterm canvas layers
       const compositeCanvases = () => {
-        ctx.clearRect(0, 0, compositeCanvas.width, compositeCanvas.height);
+        // Fill with the theme background instead of clearing to
+        // transparent. xterm's CanvasAddon redraws dirty cells
+        // incrementally, so a layer can be momentarily transparent
+        // where a cell is mid-update; the opaque fill keeps those
+        // regions dark instead of flashing the a-sky through the
+        // plane.
+        ctx.fillStyle = TERMINAL_BG;
+        ctx.fillRect(0, 0, compositeCanvas.width, compositeCanvas.height);
         // Draw canvases in order (bottom to top)
         canvases.forEach((canvas) => {
           ctx.drawImage(canvas, 0, 0);
@@ -289,6 +302,7 @@ export const XTermTexture: React.FC<Props> = ({
     <div
       ref={containerRef}
       data-window-id={windowId}
+      inert
       style={{
         position: 'fixed',
         width: '1200px',

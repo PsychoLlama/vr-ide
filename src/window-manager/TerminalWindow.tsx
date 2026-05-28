@@ -43,6 +43,10 @@ interface Props {
 const WINDOW_WIDTH = 4;
 const WINDOW_HEIGHT = 2.5;
 
+// Matches the xterm theme background. Kept here so the backing plane
+// stays in sync without reaching into XTermTexture.
+const TERMINAL_BG = '#1e1e1e';
+
 /**
  * TerminalWindow renders a single terminal window in 3D space.
  * Includes the terminal plane, texture, and focus border.
@@ -113,6 +117,17 @@ export const TerminalWindow: React.FC<Props> = ({
 
   return (
     <a-entity ref={entityRef} position={positionStr} rotation={rotationStr}>
+      {/* Dark backing plane: if the terminal texture is ever briefly
+          invalid (mid-upload, material reset, etc.), this keeps the
+          a-sky from showing through as a bright flash. */}
+      <a-plane
+        width={WINDOW_WIDTH}
+        height={WINDOW_HEIGHT}
+        position="0 0 -0.001"
+        color={TERMINAL_BG}
+        material="shader: flat"
+      />
+
       {/* Terminal plane */}
       <a-plane
         ref={planeRef}
