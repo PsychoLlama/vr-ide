@@ -3,7 +3,7 @@ import type {
   WindowManagerAction,
   WindowManagerState,
   WindowState,
-} from '../window-manager/types';
+} from './types';
 
 export const initialState: WindowManagerState = {
   windows: new Map(),

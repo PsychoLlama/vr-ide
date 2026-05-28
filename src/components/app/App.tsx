@@ -3,75 +3,42 @@ import React from 'react';
 import type { Scene } from 'aframe';
 import { container } from './App.css';
 import { installXrRafBridge } from './xr-raf-bridge';
-import {
-  WindowManagerProvider,
-  KeyboardHandler,
-  KeyboardRelay,
-  Launcher,
-  SessionPresence,
-  useWindowManager,
-} from '../../window-manager';
-import { WindowManager } from '../../vr/window-manager';
-import { getCameraPlacement } from '../../vr/camera';
+import { mountVrCore } from '../../vr/mount';
+import { WindowStore } from '../../vr/store';
+import { Launcher } from '../launcher/Launcher';
 import { KeyboardSender } from '../keyboard-sender/KeyboardSender';
 
 export const App = () => {
-  const sceneRef = React.useRef<Scene | null>(null);
-
-  React.useEffect(() => {
-    if (sceneRef.current) {
-      installXrRafBridge(sceneRef.current);
-    }
-  }, []);
-
   if (window.location.pathname.startsWith('/keyboard/')) {
     return <KeyboardSender />;
   }
 
-  return (
-    <div className={container}>
-      <WindowManagerProvider>
-        <a-scene embedded ref={sceneRef}>
-          <a-sky color="#ECECEC" />
-          <SceneWindows sceneRef={sceneRef} />
-        </a-scene>
-        <KeyboardHandler />
-        <KeyboardRelay />
-        <SessionPresence />
-        <Launcher />
-      </WindowManagerProvider>
-    </div>
-  );
+  return <VrApp />;
 };
 
-interface SceneWindowsProps {
-  sceneRef: React.RefObject<Scene | null>;
-}
+const VrApp: React.FC = () => {
+  const sceneRef = React.useRef<Scene | null>(null);
+  const storeRef = React.useRef<WindowStore | null>(null);
+  storeRef.current ??= new WindowStore();
+  const store = storeRef.current;
 
-/**
- * Bridge between the React provider and the imperative VR core. Spins
- * up a `WindowManager` once the scene element exists and tears it down
- * on unmount. Renders nothing — all entities are appended directly to
- * the scene by the manager.
- */
-const SceneWindows: React.FC<SceneWindowsProps> = ({ sceneRef }) => {
-  const { store, registerTerminal, unregisterTerminal } = useWindowManager();
-
+  // Single imperative mount: bridge XR rAF, then spin up the VR core
+  // (window manager + keyboard listener + relay socket + presence
+  // socket). The teardown order matches mount order in reverse.
   React.useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
 
-    const manager = new WindowManager({
-      parent: scene,
-      store,
-      getSelectPlacement: getCameraPlacement,
-      registerTerminal,
-      unregisterTerminal,
-    });
-    manager.start();
+    installXrRafBridge(scene);
+    return mountVrCore(scene, store);
+  }, [store]);
 
-    return () => manager.stop();
-  }, [sceneRef, store, registerTerminal, unregisterTerminal]);
-
-  return null;
+  return (
+    <div className={container}>
+      <a-scene embedded ref={sceneRef}>
+        <a-sky color="#ECECEC" />
+      </a-scene>
+      <Launcher store={store} />
+    </div>
+  );
 };

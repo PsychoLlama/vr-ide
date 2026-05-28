@@ -1,6 +1,6 @@
 import React from 'react';
-import { getCameraPlacement } from '../vr/camera';
-import { useWindowManager } from './WindowManagerContext';
+import { getCameraPlacement } from '../../vr/camera';
+import { createWindow, WindowStore } from '../../vr/store';
 
 interface App {
   id: string;
@@ -9,15 +9,26 @@ interface App {
   action: () => void;
 }
 
+interface Props {
+  store: WindowStore;
+}
+
 /**
  * Launcher provides a spotlight-style app launcher.
  * Shows a search input and filtered list of apps.
  */
-export const Launcher: React.FC = () => {
-  const { state, closeLauncher, createWindow } = useWindowManager();
+export const Launcher: React.FC<Props> = ({ store }) => {
+  const launcherOpen = React.useSyncExternalStore(
+    store.subscribe,
+    () => store.getState().launcherOpen,
+  );
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [query, setQuery] = React.useState('');
   const [selectedIndex, setSelectedIndex] = React.useState(0);
+
+  const closeLauncher = React.useCallback(() => {
+    store.dispatch({ type: 'CLOSE_LAUNCHER' });
+  }, [store]);
 
   // Define available apps
   const apps: App[] = React.useMemo(
@@ -28,12 +39,12 @@ export const Launcher: React.FC = () => {
         icon: '>_',
         action: () => {
           const { position, rotation } = getCameraPlacement();
-          createWindow(position, rotation);
+          createWindow(store, position, rotation);
           closeLauncher();
         },
       },
     ],
-    [createWindow, closeLauncher],
+    [store, closeLauncher],
   );
 
   // Filter apps based on query
@@ -50,13 +61,13 @@ export const Launcher: React.FC = () => {
 
   // Focus input when launcher opens
   React.useEffect(() => {
-    if (state.launcherOpen) {
+    if (launcherOpen) {
       setQuery('');
       setSelectedIndex(0);
       // Small delay to ensure DOM is ready
       setTimeout(() => inputRef.current?.focus(), 10);
     }
-  }, [state.launcherOpen]);
+  }, [launcherOpen]);
 
   // Handle keyboard navigation
   const handleKeyDown = (event: React.KeyboardEvent) => {
@@ -82,7 +93,7 @@ export const Launcher: React.FC = () => {
     }
   };
 
-  if (!state.launcherOpen) return null;
+  if (!launcherOpen) return null;
 
   return (
     <div style={styles.overlay} onClick={closeLauncher}>

@@ -1,5 +1,5 @@
 import type { THREE as ThreeLib } from 'aframe';
-import type { Vector3 } from '../window-manager/types';
+import type { Vector3 } from './types';
 
 declare const THREE: typeof ThreeLib;
 

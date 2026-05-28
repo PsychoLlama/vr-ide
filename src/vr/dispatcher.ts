@@ -1,7 +1,7 @@
 import { keyEventToInput } from '../key-event-to-input';
-import type { TerminalRegistry } from '../window-manager/types';
 import { getCameraPlacement, getGazedWindowId } from './camera';
 import { createWindow as storeCreateWindow, WindowStore } from './store';
+import type { WindowManager } from './window-manager';
 
 /**
  * Subset of KeyboardEvent the dispatcher actually reads. Decoupled
@@ -18,7 +18,7 @@ export interface DispatchableKeyEvent {
 
 export interface DispatcherDeps {
   store: WindowStore;
-  terminals: TerminalRegistry;
+  manager: WindowManager;
 }
 
 /**
@@ -35,7 +35,7 @@ export function dispatchKeyEvent(
   event: DispatchableKeyEvent,
   deps: DispatcherDeps,
 ): boolean {
-  const { store, terminals } = deps;
+  const { store, manager } = deps;
   const state = store.getState();
 
   if (event.altKey) {
@@ -103,8 +103,5 @@ export function dispatchKeyEvent(
   const input = keyEventToInput(event);
   if (input === null) return false;
 
-  const send = terminals.get(state.focusedWindowId);
-  if (!send) return false;
-  send(input);
-  return true;
+  return manager.sendInput(state.focusedWindowId, input);
 }

@@ -1,5 +1,5 @@
 import type { Entity, THREE as ThreeLib } from 'aframe';
-import type { WindowState } from '../window-manager/types';
+import type { WindowState } from './types';
 import { TerminalController } from './terminal-controller';
 
 declare const THREE: typeof ThreeLib;

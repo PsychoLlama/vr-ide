@@ -1,4 +1,4 @@
-import type { Vector3 } from '../window-manager/types';
+import type { TerminalInputSink, TerminalRegistry, Vector3 } from './types';
 import type { WindowStore } from './store';
 import { WindowController } from './window-controller';
 
@@ -18,12 +18,6 @@ export interface WindowManagerOptions {
    * the same camera helpers used elsewhere.
    */
   getSelectPlacement: () => { position: Vector3; rotation: Vector3 };
-  /**
-   * Routes terminal handles back to the consumer that needs to send
-   * keystrokes (currently the React provider's terminal registry).
-   */
-  registerTerminal: (id: string, sendInput: (data: string) => void) => void;
-  unregisterTerminal: (id: string) => void;
 }
 
 /**
@@ -33,6 +27,7 @@ export interface WindowManagerOptions {
  */
 export class WindowManager {
   private readonly controllers = new Map<string, WindowController>();
+  private readonly terminals: TerminalRegistry = new Map();
   private readonly options: WindowManagerOptions;
   private unsubscribe: (() => void) | null = null;
 
@@ -53,7 +48,28 @@ export class WindowManager {
       controller.dispose();
     }
     this.controllers.clear();
+    this.terminals.clear();
   }
+
+  /**
+   * Send a keystroke to the terminal owned by `id`. Returns true if the
+   * id matched a ready terminal — the dispatcher uses this to decide
+   * whether the event was consumed.
+   */
+  sendInput(id: string, data: string): boolean {
+    const send = this.terminals.get(id);
+    if (!send) return false;
+    send(data);
+    return true;
+  }
+
+  private registerTerminal = (id: string, sink: TerminalInputSink): void => {
+    this.terminals.set(id, sink);
+  };
+
+  private unregisterTerminal = (id: string): void => {
+    this.terminals.delete(id);
+  };
 
   private sync(): void {
     const state = this.options.store.getState();
@@ -78,8 +94,8 @@ export class WindowManager {
             }),
           getSelectPlacement: this.options.getSelectPlacement,
           onTerminalReady: (sendInput) =>
-            this.options.registerTerminal(window.id, sendInput),
-          onTerminalDispose: () => this.options.unregisterTerminal(window.id),
+            this.registerTerminal(window.id, sendInput),
+          onTerminalDispose: () => this.unregisterTerminal(window.id),
         });
         this.controllers.set(window.id, controller);
       }
