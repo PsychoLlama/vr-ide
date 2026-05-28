@@ -1,5 +1,6 @@
 import { keyEventToInput } from '../key-event-to-input';
 import { getCameraPlacement, getGazedWindowId } from './camera';
+import { STEP_COLS, STEP_ROWS } from './sizing';
 import { createWindow as storeCreateWindow, WindowStore } from './store';
 import type { WindowManager } from './window-manager';
 
@@ -83,6 +84,12 @@ export function dispatchKeyEvent(
         void scene?.exitVR();
         return true;
       }
+      case '=':
+      case '+':
+        return resizeFocused(deps, +STEP_COLS, +STEP_ROWS);
+      case '-':
+      case '_':
+        return resizeFocused(deps, -STEP_COLS, -STEP_ROWS);
     }
   }
 
@@ -104,4 +111,31 @@ export function dispatchKeyEvent(
   if (input === null) return false;
 
   return manager.sendInput(state.focusedWindowId, input);
+}
+
+/**
+ * Dispatch a RESIZE_WINDOW against the focused window, stepping its
+ * grid by (`dCols`, `dRows`). Always returns true so the caller can
+ * preventDefault even when no window is focused (Alt+= shouldn't fall
+ * through to the browser's zoom).
+ */
+function resizeFocused(
+  deps: DispatcherDeps,
+  dCols: number,
+  dRows: number,
+): boolean {
+  const { store } = deps;
+  const state = store.getState();
+  if (!state.focusedWindowId) return true;
+  const window = state.windows.get(state.focusedWindowId);
+  if (!window) return true;
+  store.dispatch({
+    type: 'RESIZE_WINDOW',
+    payload: {
+      id: state.focusedWindowId,
+      cols: window.cols + dCols,
+      rows: window.rows + dRows,
+    },
+  });
+  return true;
 }

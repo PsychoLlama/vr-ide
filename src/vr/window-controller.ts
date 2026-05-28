@@ -1,14 +1,11 @@
 import type { Entity, THREE as ThreeLib } from 'aframe';
 import type { WindowState } from './types';
 import { TerminalController } from './terminal-controller';
+import { CELL_HEIGHT_M, CELL_WIDTH_M } from './sizing';
 
 declare const THREE: typeof ThreeLib;
 
 const DEG_TO_RAD = Math.PI / 180;
-
-// Window dimensions (matching the 16:10 aspect ratio).
-const WINDOW_WIDTH = 4;
-const WINDOW_HEIGHT = 2.5;
 
 // Matches the xterm theme background; kept here so the backing plane
 // stays in sync without reaching into TerminalController.
@@ -66,11 +63,14 @@ export class WindowController {
   readonly id: string;
   private readonly callbacks: WindowControllerCallbacks;
   private readonly root: Entity;
+  private readonly backingPlane: Entity;
   private readonly terminalPlane: Entity;
   private readonly borderPlanes: Entity[];
   private readonly terminal: TerminalController;
   private readonly clickHandler: () => void;
 
+  private cols: number;
+  private rows: number;
   private focused = false;
   private selectMode = false;
   private selectRafId = 0;
@@ -83,6 +83,8 @@ export class WindowController {
   ) {
     this.id = initial.id;
     this.callbacks = callbacks;
+    this.cols = initial.cols;
+    this.rows = initial.rows;
 
     this.root = document.createElement('a-entity');
     this.applyPose(initial.position, initial.rotation);
@@ -90,28 +92,27 @@ export class WindowController {
     // Dark backing plane: if the terminal texture is ever briefly
     // invalid (mid-upload, material reset, etc.), this keeps the a-sky
     // from showing through as a bright flash.
-    const backingPlane = document.createElement('a-plane');
-    backingPlane.setAttribute('width', String(WINDOW_WIDTH));
-    backingPlane.setAttribute('height', String(WINDOW_HEIGHT));
-    backingPlane.setAttribute('position', '0 0 -0.001');
-    backingPlane.setAttribute('color', TERMINAL_BG);
-    backingPlane.setAttribute('material', 'shader: flat');
-    this.root.appendChild(backingPlane);
+    this.backingPlane = document.createElement('a-plane');
+    this.backingPlane.setAttribute('position', '0 0 -0.001');
+    this.backingPlane.setAttribute('color', TERMINAL_BG);
+    this.backingPlane.setAttribute('material', 'shader: flat');
+    this.root.appendChild(this.backingPlane);
 
     this.terminalPlane = document.createElement('a-plane');
-    this.terminalPlane.setAttribute('width', String(WINDOW_WIDTH));
-    this.terminalPlane.setAttribute('height', String(WINDOW_HEIGHT));
     this.terminalPlane.dataset.windowId = this.id;
     this.clickHandler = () => callbacks.onClick();
     this.terminalPlane.addEventListener('click', this.clickHandler);
     this.root.appendChild(this.terminalPlane);
 
     this.borderPlanes = this.buildBorder();
+    this.applyGeometry();
 
     parent.appendChild(this.root);
 
     this.terminal = new TerminalController({
       windowId: this.id,
+      cols: this.cols,
+      rows: this.rows,
       onTextureReady: (texture) => {
         this.bindTextureToPlane(texture);
       },
@@ -217,28 +218,60 @@ export class WindowController {
   }
 
   private buildBorder(): Entity[] {
-    const halfWidth = WINDOW_WIDTH / 2;
-    const halfHeight = WINDOW_HEIGHT / 2;
-    const t = BORDER_THICKNESS;
-    const z = BORDER_Z_OFFSET;
-
-    const edges: Array<{ w: number; h: number; pos: string }> = [
-      { w: WINDOW_WIDTH + t * 2, h: t, pos: `0 ${halfHeight + t / 2} ${z}` },
-      { w: WINDOW_WIDTH + t * 2, h: t, pos: `0 ${-halfHeight - t / 2} ${z}` },
-      { w: t, h: WINDOW_HEIGHT, pos: `${-halfWidth - t / 2} 0 ${z}` },
-      { w: t, h: WINDOW_HEIGHT, pos: `${halfWidth + t / 2} 0 ${z}` },
-    ];
-
-    return edges.map(({ w, h, pos }) => {
+    // Order matters: indices 0..3 are top, bottom, left, right. Width,
+    // height, and position are set later in applyGeometry().
+    return Array.from({ length: 4 }, () => {
       const plane = document.createElement('a-plane');
-      plane.setAttribute('width', String(w));
-      plane.setAttribute('height', String(h));
-      plane.setAttribute('position', pos);
       plane.setAttribute('material', 'shader: flat');
       plane.setAttribute('color', BORDER_COLORS.unfocused);
       this.root.appendChild(plane);
       return plane;
     });
+  }
+
+  /**
+   * Recompute plane sizes and border-edge positions from the current
+   * cols/rows. Called on construct and on `setSize`.
+   */
+  private applyGeometry(): void {
+    const width = this.cols * CELL_WIDTH_M;
+    const height = this.rows * CELL_HEIGHT_M;
+
+    this.backingPlane.setAttribute('width', String(width));
+    this.backingPlane.setAttribute('height', String(height));
+    this.terminalPlane.setAttribute('width', String(width));
+    this.terminalPlane.setAttribute('height', String(height));
+
+    const halfW = width / 2;
+    const halfH = height / 2;
+    const t = BORDER_THICKNESS;
+    const z = BORDER_Z_OFFSET;
+
+    const edges: Array<{ w: number; h: number; pos: string }> = [
+      { w: width + t * 2, h: t, pos: `0 ${halfH + t / 2} ${z}` },
+      { w: width + t * 2, h: t, pos: `0 ${-halfH - t / 2} ${z}` },
+      { w: t, h: height, pos: `${-halfW - t / 2} 0 ${z}` },
+      { w: t, h: height, pos: `${halfW + t / 2} 0 ${z}` },
+    ];
+
+    edges.forEach(({ w, h, pos }, i) => {
+      const plane = this.borderPlanes[i];
+      plane.setAttribute('width', String(w));
+      plane.setAttribute('height', String(h));
+      plane.setAttribute('position', pos);
+    });
+  }
+
+  /**
+   * Resize the window's terminal grid. Updates the plane and border
+   * geometry, then forwards to the terminal (which signals the PTY).
+   */
+  setSize(cols: number, rows: number): void {
+    if (this.cols === cols && this.rows === rows) return;
+    this.cols = cols;
+    this.rows = rows;
+    this.applyGeometry();
+    this.terminal.setSize(cols, rows);
   }
 
   private updateBorderColor(): void {

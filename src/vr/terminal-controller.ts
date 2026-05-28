@@ -4,6 +4,7 @@ import { CanvasAddon } from '@xterm/addon-canvas';
 import type { THREE as ThreeLib } from 'aframe';
 import { isServerMessage } from '../pty-protocol';
 import { getClientId } from '../client-id';
+import { HIDDEN_PX_PER_COL, HIDDEN_PX_PER_ROW } from './sizing';
 
 declare const THREE: typeof ThreeLib;
 
@@ -39,6 +40,12 @@ export interface TerminalControllerOptions {
    * Unique identifier for this terminal, used only for log prefixes.
    */
   windowId: string;
+  /**
+   * Initial grid size. xterm boots at this dimension and the off-screen
+   * host is sized to fit.
+   */
+  cols: number;
+  rows: number;
   /**
    * Fires synchronously the moment the Three.js texture is first created
    * (before the WebSocket starts connecting). Use this to bind the
@@ -90,8 +97,8 @@ export class TerminalController {
     this.container.inert = true;
     Object.assign(this.container.style, {
       position: 'fixed',
-      width: '1200px',
-      height: '750px',
+      width: `${options.cols * HIDDEN_PX_PER_COL}px`,
+      height: `${options.rows * HIDDEN_PX_PER_ROW}px`,
       left: '0',
       top: '0',
       opacity: '0',
@@ -100,13 +107,12 @@ export class TerminalController {
     } satisfies Partial<CSSStyleDeclaration>);
     document.body.appendChild(this.container);
 
-    // 120x38 gives roughly 16:10 aspect ratio with monospace font cells.
     this.terminal = new Terminal({
       cursorBlink: false,
       cursorStyle: 'block',
       cursorInactiveStyle: 'block',
-      cols: 120,
-      rows: 38,
+      cols: options.cols,
+      rows: options.rows,
       fontSize: 16,
       fontFamily: 'monospace',
       allowTransparency: false,
@@ -138,6 +144,20 @@ export class TerminalController {
    */
   sendInput(data: string): void {
     this.send({ type: 'input', data });
+  }
+
+  /**
+   * Resize the underlying xterm grid. Triggers xterm's `onResize`,
+   * which forwards a `resize` message to the PTY server — SIGWINCH
+   * follows from there. The off-screen host is grown to match so xterm's
+   * canvas can lay out at the new dimensions; the composite loop picks
+   * up the larger canvas on its next tick.
+   */
+  setSize(cols: number, rows: number): void {
+    if (this.terminal.cols === cols && this.terminal.rows === rows) return;
+    this.container.style.width = `${cols * HIDDEN_PX_PER_COL}px`;
+    this.container.style.height = `${rows * HIDDEN_PX_PER_ROW}px`;
+    this.terminal.resize(cols, rows);
   }
 
   /**
@@ -186,6 +206,24 @@ export class TerminalController {
     const ctx = compositeCanvas.getContext('2d')!;
 
     const compositeCanvases = () => {
+      // Re-sample on each tick: xterm's canvas pixel dimensions grow
+      // after `terminal.resize()`, and CanvasAddon may add or replace
+      // layer canvases over time. Caching the array from initTexture
+      // would leave us drawing into a stale-sized buffer after a
+      // resize.
+      const layers = Array.from(this.container.querySelectorAll('canvas'));
+      if (layers.length === 0) return;
+      const main = layers.reduce((largest, canvas) =>
+        canvas.width * canvas.height > largest.width * largest.height
+          ? canvas
+          : largest,
+      );
+      if (compositeCanvas.width !== main.width) {
+        compositeCanvas.width = main.width;
+      }
+      if (compositeCanvas.height !== main.height) {
+        compositeCanvas.height = main.height;
+      }
       // Fill with the theme background instead of clearing to
       // transparent. xterm's CanvasAddon redraws dirty cells
       // incrementally, so a layer can be momentarily transparent
@@ -193,7 +231,7 @@ export class TerminalController {
       // regions dark instead of flashing the a-sky through the plane.
       ctx.fillStyle = TERMINAL_BG;
       ctx.fillRect(0, 0, compositeCanvas.width, compositeCanvas.height);
-      canvases.forEach((canvas) => {
+      layers.forEach((canvas) => {
         ctx.drawImage(canvas, 0, 0);
       });
     };

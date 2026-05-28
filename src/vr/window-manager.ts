@@ -80,6 +80,7 @@ export class WindowManager {
       const existing = this.controllers.get(window.id);
       if (existing) {
         existing.setPose(window.position, window.rotation);
+        existing.setSize(window.cols, window.rows);
       } else {
         const controller = new WindowController(this.options.parent, window, {
           onClick: () =>

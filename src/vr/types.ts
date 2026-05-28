@@ -8,6 +8,8 @@ export interface WindowState {
   id: string;
   position: Vector3;
   rotation: Vector3;
+  cols: number;
+  rows: number;
   createdAt: number;
 }
 
@@ -38,6 +40,10 @@ export type WindowManagerAction =
       payload: { position: Vector3; rotation: Vector3 };
     }
   | { type: 'CANCEL_SELECT_MODE' }
+  | {
+      type: 'RESIZE_WINDOW';
+      payload: { id: string; cols: number; rows: number };
+    }
   | { type: 'OPEN_LAUNCHER' }
   | { type: 'CLOSE_LAUNCHER' };
 

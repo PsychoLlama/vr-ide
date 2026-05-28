@@ -4,6 +4,7 @@ import type {
   WindowManagerState,
   WindowState,
 } from './types';
+import { DEFAULT_COLS, DEFAULT_ROWS, clampCols, clampRows } from './sizing';
 
 export const initialState: WindowManagerState = {
   windows: new Map(),
@@ -126,6 +127,24 @@ export function windowManagerReducer(
       };
     }
 
+    case 'RESIZE_WINDOW': {
+      const { id, cols, rows } = action.payload;
+      const window = state.windows.get(id);
+      if (!window) return state;
+
+      const nextCols = clampCols(cols);
+      const nextRows = clampRows(rows);
+      if (window.cols === nextCols && window.rows === nextRows) return state;
+
+      const newWindows = new Map(state.windows);
+      newWindows.set(id, { ...window, cols: nextCols, rows: nextRows });
+
+      return {
+        ...state,
+        windows: newWindows,
+      };
+    }
+
     case 'OPEN_LAUNCHER': {
       return {
         ...state,
@@ -193,6 +212,8 @@ export function createWindow(
     id,
     position,
     rotation,
+    cols: DEFAULT_COLS,
+    rows: DEFAULT_ROWS,
     createdAt: Date.now(),
   };
   store.dispatch({ type: 'CREATE_WINDOW', payload: window });
