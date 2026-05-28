@@ -1,6 +1,10 @@
+import type { THREE as ThreeLib } from 'aframe';
+import { readCameraPosition } from './camera';
 import type { TerminalInputSink, TerminalRegistry, Vector3 } from './types';
 import type { WindowStore } from './store';
 import { WindowController } from './window-controller';
+
+declare const THREE: typeof ThreeLib;
 
 export interface WindowManagerOptions {
   /**
@@ -14,22 +18,26 @@ export interface WindowManagerOptions {
    */
   store: WindowStore;
   /**
-   * Returns the live camera-relative pose for select mode. Sourced from
-   * the same camera helpers used elsewhere.
+   * Returns the live camera-relative position used to follow the user's
+   * gaze during select mode.
    */
-  getSelectPlacement: () => { position: Vector3; rotation: Vector3 };
+  getSelectPlacement: () => Vector3;
 }
 
 /**
  * Mirrors the store's window list onto a set of imperative
  * `WindowController` instances. One subscription, one diff pass per
- * mutation.
+ * mutation. Also runs a single per-frame tick that points every
+ * window at the camera (billboarding) and drives the select-mode
+ * window's position from the gaze placement.
  */
 export class WindowManager {
   private readonly controllers = new Map<string, WindowController>();
   private readonly terminals: TerminalRegistry = new Map();
   private readonly options: WindowManagerOptions;
+  private readonly cameraPos = new THREE.Vector3();
   private unsubscribe: (() => void) | null = null;
+  private rafId = 0;
 
   constructor(options: WindowManagerOptions) {
     this.options = options;
@@ -39,11 +47,14 @@ export class WindowManager {
     if (this.unsubscribe) return;
     this.sync();
     this.unsubscribe = this.options.store.subscribe(() => this.sync());
+    this.rafId = requestAnimationFrame(this.tick);
   }
 
   stop(): void {
     this.unsubscribe?.();
     this.unsubscribe = null;
+    cancelAnimationFrame(this.rafId);
+    this.rafId = 0;
     for (const controller of this.controllers.values()) {
       controller.dispose();
     }
@@ -79,7 +90,7 @@ export class WindowManager {
     for (const window of state.windows.values()) {
       const existing = this.controllers.get(window.id);
       if (existing) {
-        existing.setPose(window.position, window.rotation);
+        existing.setPosition(window.position);
         existing.setSize(window.cols, window.rows);
       } else {
         const controller = new WindowController(this.options.parent, window, {
@@ -93,7 +104,6 @@ export class WindowManager {
               type: 'DESTROY_WINDOW',
               payload: { id: window.id },
             }),
-          getSelectPlacement: this.options.getSelectPlacement,
           onTerminalReady: (sendInput) =>
             this.registerTerminal(window.id, sendInput),
           onTerminalDispose: () => this.unregisterTerminal(window.id),
@@ -117,4 +127,26 @@ export class WindowManager {
       );
     }
   }
+
+  /**
+   * Per-frame tick: position the select-mode window along the gaze,
+   * then point every window at the camera. One querySelector and one
+   * `getWorldPosition` per frame regardless of window count.
+   */
+  private tick = (): void => {
+    this.rafId = requestAnimationFrame(this.tick);
+
+    if (!readCameraPosition(this.cameraPos)) return;
+
+    const state = this.options.store.getState();
+    const selectId = state.selectMode.active ? state.selectMode.windowId : null;
+    const selectPosition = selectId ? this.options.getSelectPlacement() : null;
+
+    for (const [id, controller] of this.controllers) {
+      if (id === selectId && selectPosition) {
+        controller.setSelectModePose(selectPosition);
+      }
+      controller.faceCamera(this.cameraPos);
+    }
+  };
 }

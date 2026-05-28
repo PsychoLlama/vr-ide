@@ -46,8 +46,7 @@ export function dispatchKeyEvent(
         return true;
       case 'n':
       case 'enter': {
-        const { position, rotation } = getCameraPlacement();
-        storeCreateWindow(store, position, rotation);
+        storeCreateWindow(store, getCameraPlacement());
         return true;
       }
       case 'w':
@@ -67,10 +66,9 @@ export function dispatchKeyEvent(
       }
       case 'm':
         if (state.selectMode.active) {
-          const { position, rotation } = getCameraPlacement();
           store.dispatch({
             type: 'PLACE_SELECTED_WINDOW',
-            payload: { position, rotation },
+            payload: { position: getCameraPlacement() },
           });
         } else if (state.focusedWindowId) {
           store.dispatch({ type: 'START_SELECT_MODE' });

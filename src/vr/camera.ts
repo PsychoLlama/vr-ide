@@ -3,11 +3,6 @@ import type { Vector3 } from './types';
 
 declare const THREE: typeof ThreeLib;
 
-interface CameraPlacement {
-  position: Vector3;
-  rotation: Vector3;
-}
-
 interface CameraElement extends Element {
   object3D: ThreeLib.Object3D;
 }
@@ -17,26 +12,25 @@ interface PlaneEntity extends Element {
   getObject3D: (name: string) => ThreeLib.Object3D | undefined;
 }
 
-// Default placement when the camera hasn't mounted yet (initial render
+// Default position when the camera hasn't mounted yet (initial render
 // before A-Frame has wired up its scene graph).
-const DEFAULT_PLACEMENT: CameraPlacement = {
-  position: { x: 0, y: 1.6, z: -4 },
-  rotation: { x: 0, y: 0, z: 0 },
-};
+const DEFAULT_POSITION: Vector3 = { x: 0, y: 1.6, z: -4 };
 
 // Distance in front of the camera at which to place new/moved windows.
 const PLACEMENT_DISTANCE = 4;
 
 /**
- * Camera position plus a window pose four metres ahead, facing back at
- * the camera. Used for placing newly-spawned windows and for the live
- * follow-the-gaze placement during select mode.
+ * Position four metres ahead of the camera along its gaze ray. Used
+ * for placing newly-spawned windows and for the live follow-the-gaze
+ * placement during select mode. Orientation is no longer returned —
+ * the WindowManager's per-frame billboard tick keeps every window
+ * facing the camera regardless of where it ends up.
  */
-export function getCameraPlacement(): CameraPlacement {
-  if (typeof document === 'undefined') return DEFAULT_PLACEMENT;
+export function getCameraPlacement(): Vector3 {
+  if (typeof document === 'undefined') return DEFAULT_POSITION;
 
   const cameraEl = document.querySelector('[camera]');
-  if (!cameraEl) return DEFAULT_PLACEMENT;
+  if (!cameraEl) return DEFAULT_POSITION;
 
   const camera = cameraEl as CameraElement;
   const object3D = camera.object3D;
@@ -51,20 +45,24 @@ export function getCameraPlacement(): CameraPlacement {
   // look direction.
   cameraDirection.negate();
 
-  const position: Vector3 = {
+  return {
     x: cameraPosition.x + cameraDirection.x * PLACEMENT_DISTANCE,
     y: cameraPosition.y + cameraDirection.y * PLACEMENT_DISTANCE,
     z: cameraPosition.z + cameraDirection.z * PLACEMENT_DISTANCE,
   };
+}
 
-  // Rotate the window to face back toward the camera.
-  const angleY =
-    Math.atan2(-cameraDirection.x, -cameraDirection.z) * (180 / Math.PI);
-
-  return {
-    position,
-    rotation: { x: 0, y: angleY, z: 0 },
-  };
+/**
+ * World-space position of the active A-Frame camera. Returned via an
+ * existing `THREE.Vector3` so callers can avoid per-frame allocation.
+ * Returns false when the camera element isn't mounted yet.
+ */
+export function readCameraPosition(out: ThreeLib.Vector3): boolean {
+  if (typeof document === 'undefined') return false;
+  const cameraEl = document.querySelector<CameraElement>('[camera]');
+  if (!cameraEl) return false;
+  cameraEl.object3D.getWorldPosition(out);
+  return true;
 }
 
 /**

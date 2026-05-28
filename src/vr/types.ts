@@ -7,7 +7,6 @@ export interface Vector3 {
 export interface WindowState {
   id: string;
   position: Vector3;
-  rotation: Vector3;
   cols: number;
   rows: number;
   createdAt: number;
@@ -32,12 +31,12 @@ export type WindowManagerAction =
   | { type: 'FOCUS_WINDOW'; payload: { id: string } }
   | {
       type: 'UPDATE_WINDOW_POSITION';
-      payload: { id: string; position: Vector3; rotation: Vector3 };
+      payload: { id: string; position: Vector3 };
     }
   | { type: 'START_SELECT_MODE' }
   | {
       type: 'PLACE_SELECTED_WINDOW';
-      payload: { position: Vector3; rotation: Vector3 };
+      payload: { position: Vector3 };
     }
   | { type: 'CANCEL_SELECT_MODE' }
   | {

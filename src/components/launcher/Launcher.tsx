@@ -38,8 +38,7 @@ export const Launcher: React.FC<Props> = ({ store }) => {
         name: 'Terminal',
         icon: '>_',
         action: () => {
-          const { position, rotation } = getCameraPlacement();
-          createWindow(store, position, rotation);
+          createWindow(store, getCameraPlacement());
           closeLauncher();
         },
       },

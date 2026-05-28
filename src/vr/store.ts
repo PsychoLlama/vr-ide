@@ -77,12 +77,12 @@ export function windowManagerReducer(
     }
 
     case 'UPDATE_WINDOW_POSITION': {
-      const { id, position, rotation } = action.payload;
+      const { id, position } = action.payload;
       const window = state.windows.get(id);
       if (!window) return state;
 
       const newWindows = new Map(state.windows);
-      newWindows.set(id, { ...window, position, rotation });
+      newWindows.set(id, { ...window, position });
 
       return {
         ...state,
@@ -105,13 +105,13 @@ export function windowManagerReducer(
     case 'PLACE_SELECTED_WINDOW': {
       if (!state.selectMode.active || !state.selectMode.windowId) return state;
 
-      const { position, rotation } = action.payload;
+      const { position } = action.payload;
       const windowId = state.selectMode.windowId;
       const window = state.windows.get(windowId);
       if (!window) return state;
 
       const newWindows = new Map(state.windows);
-      newWindows.set(windowId, { ...window, position, rotation });
+      newWindows.set(windowId, { ...window, position });
 
       return {
         ...state,
@@ -202,16 +202,11 @@ export function generateWindowId(): string {
  * dispatching the create action. Kept here so both the React path and
  * the imperative dispatcher use the same id generator.
  */
-export function createWindow(
-  store: WindowStore,
-  position: Vector3,
-  rotation: Vector3,
-): string {
+export function createWindow(store: WindowStore, position: Vector3): string {
   const id = generateWindowId();
   const window: WindowState = {
     id,
     position,
-    rotation,
     cols: DEFAULT_COLS,
     rows: DEFAULT_ROWS,
     createdAt: Date.now(),

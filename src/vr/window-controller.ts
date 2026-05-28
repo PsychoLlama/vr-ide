@@ -1,11 +1,9 @@
 import type { Entity, THREE as ThreeLib } from 'aframe';
-import type { WindowState } from './types';
+import type { Vector3, WindowState } from './types';
 import { TerminalController } from './terminal-controller';
 import { CELL_HEIGHT_M, CELL_WIDTH_M } from './sizing';
 
 declare const THREE: typeof ThreeLib;
-
-const DEG_TO_RAD = Math.PI / 180;
 
 // Matches the xterm theme background; kept here so the backing plane
 // stays in sync without reaching into TerminalController.
@@ -30,14 +28,6 @@ export interface WindowControllerCallbacks {
    */
   onExit: (exitCode: number) => void;
   /**
-   * Provides the live camera-relative placement during select mode.
-   * Called per frame; should be cheap.
-   */
-  getSelectPlacement: () => {
-    position: WindowState['position'];
-    rotation: WindowState['rotation'];
-  };
-  /**
    * Exposes the terminal handle so the dispatcher can route keystrokes
    * to whichever window is focused.
    */
@@ -55,9 +45,9 @@ export interface WindowControllerCallbacks {
  * the `TerminalController` whose texture is bound to the terminal
  * plane's material.
  *
- * The controller does not subscribe to the store itself; the parent
- * `WindowManager` calls `setPose` / `setFocused` / `setSelectMode` as
- * store snapshots arrive.
+ * The controller does not subscribe to the store or own a RAF. The
+ * parent `WindowManager` drives orientation per frame via `faceCamera`
+ * and position during select mode via `setSelectModePose`.
  */
 export class WindowController {
   readonly id: string;
@@ -68,12 +58,13 @@ export class WindowController {
   private readonly borderPlanes: Entity[];
   private readonly terminal: TerminalController;
   private readonly clickHandler: () => void;
+  // Reused per-frame scratch vector so `faceCamera` doesn't allocate.
+  private readonly lookAtTarget = new THREE.Vector3();
 
   private cols: number;
   private rows: number;
   private focused = false;
   private selectMode = false;
-  private selectRafId = 0;
   private disposed = false;
 
   constructor(
@@ -87,7 +78,7 @@ export class WindowController {
     this.rows = initial.rows;
 
     this.root = document.createElement('a-entity');
-    this.applyPose(initial.position, initial.rotation);
+    this.applyPosition(initial.position);
 
     // Dark backing plane: if the terminal texture is ever briefly
     // invalid (mid-upload, material reset, etc.), this keeps the a-sky
@@ -124,16 +115,14 @@ export class WindowController {
   }
 
   /**
-   * Apply a new pose from the store. Quietly skipped while select mode
-   * is driving the entity directly each frame; the post-select-mode
-   * snap-back in `setSelectMode(false)` will reapply the latest pose.
+   * Apply a new position from the store. Skipped while select mode is
+   * driving the entity directly each frame — the next sync after
+   * select mode ends will re-apply whatever the store ultimately
+   * holds.
    */
-  setPose(
-    position: WindowState['position'],
-    rotation: WindowState['rotation'],
-  ): void {
+  setPosition(position: Vector3): void {
     if (this.selectMode) return;
-    this.applyPose(position, rotation);
+    this.applyPosition(position);
   }
 
   setFocused(focused: boolean): void {
@@ -146,75 +135,49 @@ export class WindowController {
     if (this.selectMode === active) return;
     this.selectMode = active;
     this.updateBorderColor();
+  }
 
-    if (active) {
-      // While select mode is on, drive object3D directly from the live
-      // camera. Position/rotation attributes are left alone so a cancel
-      // restores cleanly to whatever the store still holds.
-      const tick = () => {
-        if (!this.selectMode || this.disposed) return;
-        const { position, rotation } = this.callbacks.getSelectPlacement();
-        this.root.object3D.position.set(position.x, position.y, position.z);
-        this.root.object3D.rotation.set(
-          rotation.x * DEG_TO_RAD,
-          rotation.y * DEG_TO_RAD,
-          rotation.z * DEG_TO_RAD,
-        );
-        this.selectRafId = requestAnimationFrame(tick);
-      };
-      this.selectRafId = requestAnimationFrame(tick);
-    } else {
-      cancelAnimationFrame(this.selectRafId);
-      this.selectRafId = 0;
-      // After leaving select mode, the store's pose attributes are
-      // authoritative again. Snap object3D back to match — on cancel
-      // this restores the pre-drag pose; on placement it harmlessly
-      // re-applies the new pose the attributes already set.
-      const posAttr = this.root.getAttribute('position') as {
-        x: number;
-        y: number;
-        z: number;
-      } | null;
-      const rotAttr = this.root.getAttribute('rotation') as {
-        x: number;
-        y: number;
-        z: number;
-      } | null;
-      if (posAttr) {
-        this.root.object3D.position.set(posAttr.x, posAttr.y, posAttr.z);
-      }
-      if (rotAttr) {
-        this.root.object3D.rotation.set(
-          rotAttr.x * DEG_TO_RAD,
-          rotAttr.y * DEG_TO_RAD,
-          rotAttr.z * DEG_TO_RAD,
-        );
-      }
-    }
+  /**
+   * Drive object3D.position directly. Called by the manager's per-frame
+   * tick while this window is in select mode so the window follows the
+   * camera's gaze without touching the position attribute. Once select
+   * mode ends, the next store sync re-applies the attribute.
+   */
+  setSelectModePose(position: Vector3): void {
+    this.root.object3D.position.set(position.x, position.y, position.z);
+  }
+
+  /**
+   * Rotate the entity so its terminal face (+Z) points at the given
+   * world-space camera position. lookAt orients -Z toward the target,
+   * so we point it at the camera's mirror across the window position;
+   * +Z then naturally points back at the real camera.
+   */
+  faceCamera(cameraPos: ThreeLib.Vector3): void {
+    const windowPos = this.root.object3D.position;
+    this.lookAtTarget.copy(windowPos).multiplyScalar(2).sub(cameraPos);
+    this.root.object3D.lookAt(this.lookAtTarget);
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    cancelAnimationFrame(this.selectRafId);
     this.terminalPlane.removeEventListener('click', this.clickHandler);
     this.terminal.dispose();
     this.root.remove();
     this.callbacks.onTerminalDispose();
   }
 
-  private applyPose(
-    position: WindowState['position'],
-    rotation: WindowState['rotation'],
-  ): void {
+  private applyPosition(position: Vector3): void {
     this.root.setAttribute(
       'position',
       `${position.x} ${position.y} ${position.z}`,
     );
-    this.root.setAttribute(
-      'rotation',
-      `${rotation.x} ${rotation.y} ${rotation.z}`,
-    );
+    // The attribute set above propagates to object3D.position
+    // synchronously via A-Frame's position component, but mirroring it
+    // here keeps things robust against attribute-cache no-ops if the
+    // value didn't change.
+    this.root.object3D.position.set(position.x, position.y, position.z);
   }
 
   private buildBorder(): Entity[] {
