@@ -1,8 +1,12 @@
 import React from 'react';
+import type { Entity } from 'aframe';
 import type { MeshEntity } from '../react-aframe';
 import type { WindowState, XTermTextureHandle } from './types';
 import { XTermTexture } from '../components/xterm-texture/XTermTexture';
 import { WindowBorder } from './WindowBorder';
+import { useCameraDirection } from './hooks/useCameraDirection';
+
+const DEG_TO_RAD = Math.PI / 180;
 
 interface Props {
   /**
@@ -53,6 +57,8 @@ export const TerminalWindow: React.FC<Props> = ({
   onClick,
 }) => {
   const planeRef = React.useRef<MeshEntity | null>(null);
+  const entityRef = React.useRef<Entity | null>(null);
+  const getPlacement = useCameraDirection();
 
   const positionStr =
     `${window.position.x} ${window.position.y} ${window.position.z}` as const;
@@ -63,8 +69,50 @@ export const TerminalWindow: React.FC<Props> = ({
     onClick?.();
   }, [onClick]);
 
+  // While in select mode, mutate the entity's object3D pose directly from
+  // the live camera each frame. React state is left alone until the user
+  // confirms with Alt+M, which keeps the position/rotation attributes
+  // stable and lets a cancel restore the original pose cleanly.
+  React.useEffect(() => {
+    if (!selectMode) return;
+    const entity = entityRef.current;
+    if (!entity) return;
+
+    let raf = requestAnimationFrame(function tick() {
+      const { position, rotation } = getPlacement();
+      entity.object3D.position.set(position.x, position.y, position.z);
+      entity.object3D.rotation.set(
+        rotation.x * DEG_TO_RAD,
+        rotation.y * DEG_TO_RAD,
+        rotation.z * DEG_TO_RAD,
+      );
+      raf = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [selectMode, getPlacement]);
+
+  // After leaving select mode, snap object3D back to whatever the store
+  // actually holds. On cancel this restores the pre-drag pose (state
+  // never changed); on placement it harmlessly re-applies the new pose
+  // that the position/rotation attributes are already setting too.
+  React.useEffect(() => {
+    if (selectMode) return;
+    const entity = entityRef.current;
+    if (!entity) return;
+    entity.object3D.position.set(
+      window.position.x,
+      window.position.y,
+      window.position.z,
+    );
+    entity.object3D.rotation.set(
+      window.rotation.x * DEG_TO_RAD,
+      window.rotation.y * DEG_TO_RAD,
+      window.rotation.z * DEG_TO_RAD,
+    );
+  }, [selectMode, window.position, window.rotation]);
+
   return (
-    <a-entity position={positionStr} rotation={rotationStr}>
+    <a-entity ref={entityRef} position={positionStr} rotation={rotationStr}>
       {/* Terminal plane */}
       <a-plane
         ref={planeRef}
